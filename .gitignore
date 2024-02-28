@@ -12,4 +12,5 @@ lib64
 
 # Development
 old/
-.todo
+# Wont allow .todo
+todo.md
