@@ -26,10 +26,7 @@ class DBConnector:
         longest_moves(player_id): Retrieves and returns the maximum move number for a specific player from the database.
     """
 
-    def __init__(self, host, user, password, database):
-        self.host = host
-        self.user = user
-        self.password = password
+    def __init__(self, database):
         self.database = database
 
     def connect(self):
@@ -37,6 +34,7 @@ class DBConnector:
         Connects to the database.
         """
         self.connection = sqlite3.connect(self.database)
+        self.cursor = self.connection.cursor()
 
     def disconnect(self):
         """
@@ -46,6 +44,18 @@ class DBConnector:
             self.connection.close()
 
     # * NEA methods
+
+    def display_all_tables(self):
+        """
+        Retrieves and returns all tables from the database.
+
+        Returns:
+            list: A list of tuples representing the tables.
+        """
+        query = "SELECT * FROM sqlite_master WHERE name='players' "
+
+        cursor = self.cursor.execute(query)
+        return cursor.fetchall()
 
     def create_table(self):
         """
@@ -183,3 +193,9 @@ class DBConnector:
         query = f"SELECT MAX(move_number) FROM moves WHERE player_id = {player_id}"
         cursor = self.execute_query(query)
         return cursor.fetchall()
+
+
+if __name__ == "__main__":
+    db = DBConnector("chess.db")
+    db.connect()
+    print(db.display_all_tables())
