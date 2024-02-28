@@ -108,13 +108,6 @@ class ChessBoard:
 
         button.setObjectName(f"{x},{y}")
 
-        # Connect the clicked signal of the button to check if a piece and a square have been clicked
-        """
-        print(
-            f"{button.objectName()} : button object name, {self.board[x][y]} : {x} : {y}"
-        )
-        """
-
         # Disconnect existing connections
         try:
             button.clicked.disconnect()
@@ -217,7 +210,7 @@ class ChessBoard:
                         score += piece.weight
                     else:  # piece is black
                         score -= piece.weight
-        return scor
+        return score
 
     def areYouInCheck(self, player_colour):
         king_position = None
