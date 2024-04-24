@@ -1,6 +1,6 @@
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QGridLayout, QPushButton, QWidget
 
 
 # Promotion UI
