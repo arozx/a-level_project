@@ -1,8 +1,10 @@
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon
-from PromotionWindow import *
-from pieces import *
 import logging
+
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QApplication, QGridLayout, QPushButton, QWidget
+
+from pieces import Bishop, King, Knight, Pawn, Queen, Rook
+from PromotionWindow import PromotionWindow
 
 
 class ChessBoard:
@@ -69,11 +71,8 @@ class ChessBoard:
                         f"{self.board[x][y].__class__.__name__} : is not the same colour"
                     )
                 """
-                try:
-                    valid_moves = self.getValidMoves(self.board, x, y)
-                    print(f"cur x = {valid_moves[0][0]} cur y = {valid_moves[0][1]}")
-                except:
-                    logging.error("No valid moves")
+                valid_moves = self.getValidMoves(self.board, x, y)
+                print(f"cur x = {valid_moves[0][0]} cur y = {valid_moves[0][1]}")
                 self.highlightSquares(piece, valid_moves)
 
             else:
@@ -116,9 +115,9 @@ class ChessBoard:
 
         # Connect the clicked signal of the button to check if a piece and a square have been clicked
         button.clicked.connect(
-            lambda _, piece=self.board[x][
-                y
-            ], square=button.objectName(): self.checkMove(piece, square)
+            lambda _,
+            piece=self.board[x][y],
+            square=button.objectName(): self.checkMove(piece, square)
         )
         return button
 
@@ -190,11 +189,12 @@ class ChessBoard:
 
                     # * Removing breaks code
                     button.clicked.connect(
-                        lambda _, piece=piece, current_x=current_x, current_y=current_y, new_x=square[
-                            0
-                        ], new_y=square[
-                            1
-                        ]: self.movePiece(
+                        lambda _,
+                        piece=piece,
+                        current_x=current_x,
+                        current_y=current_y,
+                        new_x=square[0],
+                        new_y=square[1]: self.movePiece(
                             piece, current_x, current_y, new_x, new_y
                         )
                     )
@@ -242,9 +242,9 @@ class ChessBoard:
                                     self.board[new_x][new_y] = self.board[
                                         king_position[0]
                                     ][king_position[1]]
-                                    self.board[king_position[0]][
-                                        king_position[1]
-                                    ] = None
+                                    self.board[king_position[0]][king_position[1]] = (
+                                        None
+                                    )
                                     # Check if the king is still in check
                                     if not self.areYouInCheck(player_colour):
                                         # The king is not in check, so it's not checkmate
