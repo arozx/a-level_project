@@ -1,6 +1,3 @@
-from PyQt5.QtWidgets import *
-
-
 # Piece classes
 class Piece:
     def __init__(self, colour):
