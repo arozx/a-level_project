@@ -17,7 +17,8 @@ class ChessBoard:
         self.selectedButton = None
         self.highlightedSquares = []
 
-        self.promotionWindow = None
+        self.promotionWindow = PromotionWindow()
+        self.promotionWindow.pieceSelected.connect(self.handlePieceSelected)
 
         # Create white pieces
         self.board[0][0] = Rook("white")
@@ -42,6 +43,11 @@ class ChessBoard:
         self.board[7][7] = Rook("black")
         for i in range(8):
             self.board[6][i] = Pawn("black")
+
+    def handlePieceSelected(self, piece):
+        logging.info(f"Piece selected: {piece}")
+        self.promotionWindow.close()
+        print(f"Piece selected: {piece}")
 
     def find_piece_coordinates(self, piece):
         for x in range(len(self.board)):
@@ -282,9 +288,10 @@ class ChessBoard:
             if isinstance(self.board[new_x][new_y], Pawn) and (
                 new_x == 0 or new_x == 7
             ):
+                # handel promotion
                 self.promotionWindow = PromotionWindow()
-                self.promotionWindow.pieceSelected.connect(self.onPieceSelected)
-                self.promotionWindow.show()
+                self.promotionWindow.pieceSelected.connect(self.handlePieceSelected)
+
             else:
                 logging.info(f"Pawn Cannot Promote on square, ({new_x}, {new_y}) ")
 
@@ -298,29 +305,15 @@ class ChessBoard:
             logging.warn("Piece is None")
             self.highlightSquares(None, [])
 
-        #! fix promotion bug
-        #! retrive promotion peice
+        # checks if the pawn is moving to a promotion square
         for x in range(8):
             if isinstance(self.board[7][x], Pawn):
                 print(f"pawn, [8],[{x+1}] can promote")
-                print("Waiting for user to select promotion piece...")
-                self.promotionWindow = PromotionWindow()
-                self.promotionWindow.pieceSelected.connect(self.onPieceSelected)
-                self.promotionWindow.show()
+                print(self.promotionWindow.show())
 
             elif isinstance(self.board[0][x], Pawn):
                 print(f"pawn, [1],[{x+1}] can promote")
-                print("Waiting for user to select promotion piece...")
-                self.promotionWindow = PromotionWindow()
-                self.promotionWindow.pieceSelected.connect(self.onPieceSelected)
-                self.promotionWindow.show()
-
-        # deselect whole board
-        for i in range(8):
-            for j in range(8):
-                self.buttons[f"{i},{j}"].setDown(False)
-        if self.selectedButton is not None:
-            self.selectedButton.setDown(False)
+                print(self.promotionWindow.show())
 
         # * find if in check
         check = self.areYouInCheck(self.playerTurn)
@@ -357,4 +350,5 @@ if __name__ == "__main__":
     app = QApplication([])
     window = MainWindow()
     window.show()
+
     app.exec()
