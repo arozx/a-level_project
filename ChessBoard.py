@@ -78,7 +78,10 @@ class ChessBoard:
                     )
                 """
                 valid_moves = self.getValidMoves(self.board, x, y)
-                print(f"cur x = {valid_moves[0][0]} cur y = {valid_moves[0][1]}")
+                try:
+                    print(f"cur x = {valid_moves[0][0]} cur y = {valid_moves[0][1]}")
+                except IndexError:
+                    print("No valid moves")
                 self.highlightSquares(piece, valid_moves)
 
             else:
@@ -285,15 +288,12 @@ class ChessBoard:
             self.drawPiece(self.buttons[f"{current_x},{current_y}"], None)
 
             # checks if the pawn is moving to a promotion square
-            if isinstance(self.board[new_x][new_y], Pawn) and (
-                new_x == 0 or new_x == 7
+            if isinstance(piece, Pawn) and (
+                (piece.colour == "white" and new_y == 7)
+                or (piece.colour == "black" and new_y == 0)
             ):
-                # handel promotion
-                self.promotionWindow = PromotionWindow()
-                self.promotionWindow.pieceSelected.connect(self.handlePieceSelected)
-
-            else:
-                logging.info(f"Pawn Cannot Promote on square, ({new_x}, {new_y}) ")
+                logging.info(f"Pawn can promote on square, ({new_x}, {new_y}) ")
+                print(self.promotionWindow.show())
 
             # Switch player turn
             if self.playerTurn == "white":
@@ -304,16 +304,6 @@ class ChessBoard:
         else:
             logging.warn("Piece is None")
             self.highlightSquares(None, [])
-
-        # checks if the pawn is moving to a promotion square
-        for x in range(8):
-            if isinstance(self.board[7][x], Pawn):
-                print(f"pawn, [8],[{x+1}] can promote")
-                print(self.promotionWindow.show())
-
-            elif isinstance(self.board[0][x], Pawn):
-                print(f"pawn, [1],[{x+1}] can promote")
-                print(self.promotionWindow.show())
 
         # * find if in check
         check = self.areYouInCheck(self.playerTurn)
