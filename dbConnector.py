@@ -2,32 +2,9 @@ import sqlite3
 
 
 class DBConnector:
-    """
-    A class that represents a database connector.
-
-    Attributes:
-        host (str): The host of the database.
-        user (str): The username for the database.
-        password (str): The password for the database.
-        database (str): The name of the database.
-
-    Methods:
-        connect(): Connects to the database.
-        disconnect(): Disconnects from the database.
-        create_table(): Creates the necessary tables for the project.
-        display_previous_games(): Retrieves and returns all previous games from the database.
-        fetch_move_history(game_id): Retrieves and returns the move history for a specific game from the database.
-        delete_game(game_id): Deletes a game from the database.
-        find_game_rating(game_id): Retrieves and returns the rating of a specific game from the database.
-        find_player_rating(player_id): Retrieves and returns the rating of a specific player from the database.
-        insert_game(game_id, player_1_id, player_2_id, winner_id, rating): Inserts a new game into the database.
-        count_games(player_1_id, player_2_id): Counts the number of games between two players in the database.
-        calc_winrate(player_1_id): Calculates and returns the win rate of a specific player from the database.
-        longest_moves(player_id): Retrieves and returns the maximum move number for a specific player from the database.
-    """
-
     def __init__(self, database):
         self.database = database
+        self.conn = sqlite3.connect(database)
 
     def connect(self):
         """
@@ -35,6 +12,7 @@ class DBConnector:
         """
         self.connection = sqlite3.connect(self.database)
         self.cursor = self.connection.cursor()
+        self.connection.commit()
 
     def disconnect(self):
         """
@@ -57,22 +35,16 @@ class DBConnector:
         cursor = self.cursor.execute(query)
         return cursor.fetchall()
 
-    def create_table(self):
-        """
-        Creates the necessary tables for the project.
-        """
-        self.create_table(
-            "Players",
-            "player_id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, email TEXT, rating INTEGER",
-        )
-        self.create_table(
-            "Games",
-            "game_id INTEGER PRIMARY KEY AUTOINCREMENT, date_played TEXT, result INTEGER, player_1_id INTEGER, player_2_id INTEGER, rating INTEGER, player_1_rating INTEGER",
-        )
-        self.create_table(
-            "Moves",
-            "move_id INTEGER PRIMARY KEY AUTOINCREMENT, game_id INTEGER, player_id INTEGER, move_number INTEGER, move TEXT",
-        )
+    def create_table(self, table_name, columns):
+        c = self.conn.cursor()
+
+        # Create a string that defines the column names for the SQL command
+        cols = ", ".join(columns)
+
+        # Create the table
+        c.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({cols})")
+
+        self.conn.commit()
 
     def display_previous_games(self):
         """
@@ -194,8 +166,21 @@ class DBConnector:
         cursor = self.execute_query(query)
         return cursor.fetchall()
 
+    def insertGame(self, game_id, player_1_id, player_2_id, winner_id, rating):
+        query = f"INSERT INTO Games (game_id, player_1_id, player_2_id, winner_id, rating) VALUES ({game_id}, {player_1_id}, {player_2_id}, {winner_id}, {rating})"
+        self.cursor.execute(query)
+        return self.cursor.fetchall()
+
+    def execute_query(self, query):
+        cursor = self.conn.cursor()
+        cursor.execute(query)
+        self.conn.commit()
+
 
 if __name__ == "__main__":
     db = DBConnector("chess.db")
     db.connect()
+    # create games table
+    db.create_table("games", ["column1", "column2", "column3"])
+    db.insert_game(1, 1, 2, 1, 1)
     print(db.display_all_tables())
