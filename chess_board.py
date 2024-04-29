@@ -4,7 +4,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QGridLayout, QPushButton, QWidget
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
-from PromotionWindow import PromotionWindow
+from promotion_window import PromotionWindow
 
 
 class ChessBoard:
