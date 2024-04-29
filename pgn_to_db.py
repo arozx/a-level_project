@@ -1,7 +1,9 @@
 import re
 import sqlite3
+from multiprocessing import Pool
 
 import chess.pgn
+from alive_progress import alive_bar
 
 # connect to the SQLite database (or create it if it doesn't exist)
 conn = sqlite3.connect("chess_games.db")
@@ -9,76 +11,89 @@ conn = sqlite3.connect("chess_games.db")
 c = conn.cursor()
 
 
+def process_game(game):
+    # extract headers
+    headers = game.headers
+    event = headers.get("Event", "")
+    site = headers.get("Site", "")
+    date = headers.get("Date", "")
+    round = headers.get("Round", "")
+    white = headers.get("White", "")
+    black = headers.get("Black", "")
+    result = headers.get("Result", "")
+    utc_date = headers.get("UTCDate", "")
+    utc_time = headers.get("UTCTime", "")
+    white_elo = headers.get("WhiteElo", "")
+    black_elo = headers.get("BlackElo", "")
+    white_rating_diff = headers.get("WhiteRatingDiff", "")
+    black_rating_diff = headers.get("BlackRatingDiff", "")
+    white_title = headers.get("WhiteTitle", "")
+    eco = headers.get("ECO", "")
+    opening = headers.get("Opening", "")
+    time_control = headers.get("TimeControl", "")
+    termination = headers.get("Termination", "")
+
+    game_data = (
+        event,
+        site,
+        date,
+        round,
+        white,
+        black,
+        result,
+        utc_date,
+        utc_time,
+        white_elo,
+        black_elo,
+        white_rating_diff,
+        black_rating_diff,
+        white_title,
+        eco,
+        opening,
+        time_control,
+        termination,
+    )
+
+    moves_data = []
+    node = game
+    move_number = 1
+    while not node.is_end():
+        next_node = node.variation(0)
+        move = str(next_node.move)
+
+        # extract evaluation and clock time from comment
+        comment = next_node.comment
+        eval_match = re.search(r"\[%eval ([^\]]+)\]", comment)
+        clock_match = re.search(r"\[%clk ([^\]]+)\]", comment)
+        evaluation = eval_match.group(1) if eval_match else None
+        clock = clock_match.group(1) if clock_match else None
+
+        move_data = (move_number, move, evaluation, clock)
+        moves_data.append(move_data)
+
+        node = next_node
+        move_number += 1
+
+    return game_data, moves_data
+
+
 def parse_pgn(file_path):
-    with open(file_path) as pgn:
-        while True:
+    with alive_bar(250000) as bar:
+        with Pool() as pool, open(file_path) as pgn:
             game = chess.pgn.read_game(pgn)
-            if game is None:
-                break  # end of file
+            while game is not None:
+                pool.apply_async(process_and_insert_game, (game,))
+                game = chess.pgn.read_game(pgn)
+                bar()
 
-            # extract headers
-            headers = game.headers
-            event = headers.get("Event", "")
-            site = headers.get("Site", "")
-            date = headers.get("Date", "")
-            round = headers.get("Round", "")
-            white = headers.get("White", "")
-            black = headers.get("Black", "")
-            result = headers.get("Result", "")
-            utc_date = headers.get("UTCDate", "")
-            utc_time = headers.get("UTCTime", "")
-            white_elo = headers.get("WhiteElo", "")
-            black_elo = headers.get("BlackElo", "")
-            white_rating_diff = headers.get("WhiteRatingDiff", "")
-            black_rating_diff = headers.get("BlackRatingDiff", "")
-            white_title = headers.get("WhiteTitle", "")
-            eco = headers.get("ECO", "")
-            opening = headers.get("Opening", "")
-            time_control = headers.get("TimeControl", "")
-            termination = headers.get("Termination", "")
 
-            # insert into db
-            game_data = (
-                event,
-                site,
-                date,
-                round,
-                white,
-                black,
-                result,
-                utc_date,
-                utc_time,
-                white_elo,
-                black_elo,
-                white_rating_diff,
-                black_rating_diff,
-                white_title,
-                eco,
-                opening,
-                time_control,
-                termination,
-            )
-
-            game_id = insert_into_games(c, game_data)
-            node = game
-            move_number = 1
-            while not node.is_end():
-                next_node = node.variation(0)
-                move = str(next_node.move)
-
-                # rxtract evaluation and clock time from comment
-                comment = next_node.comment
-                eval_match = re.search(r"\[%eval ([^\]]+)\]", comment)
-                clock_match = re.search(r"\[%clk ([^\]]+)\]", comment)
-                evaluation = eval_match.group(1) if eval_match else None
-                clock = clock_match.group(1) if clock_match else None
-
-                # insert moves into db
-                move_data = (game_id, move_number, move, evaluation, clock)
-                insert_into_moves(c, move_data)
-
-                node = next_node
-                move_number += 1
+def process_and_insert_game(game):
+    game_data, moves_data = process_game(game)
+    with conn:
+        game_id = insert_into_games(c, game_data)
+        for move_data in moves_data:
+            move_data = (game_id,) + move_data
+            insert_into_moves(c, move_data)
 
 
 # create games table
@@ -181,7 +196,6 @@ def output_tables(c):
 
 output_tables(c)
 
-# save changes
 conn.commit()
 
 # close db connection
