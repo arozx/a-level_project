@@ -14,3 +14,6 @@ lib64
 old/
 # Wont allow .todo
 todo.md
+
+# tensorboard logs
+tb_logs/
