@@ -91,44 +91,59 @@ class ChessDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
 
     def setup(self, stage=None):
-        # Connect to the SQLite database
+        assert os.path.exists(
+            self.db_path
+        ), f"Database file not found at {os.path.abspath(self.db_path)}"
+
         conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
 
-        # Fetch all data from the 'games' table
-        games_query = "SELECT * FROM games;"
-        games_data = pd.read_sql_query(games_query, conn)
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = cursor.fetchall()
+        assert ("games",) in tables, "Table 'games' not found in the database"
+        assert ("moves",) in tables, "Table 'moves' not found in the database"
 
-        # Fetch all data from the 'moves' table
-        moves_query = "SELECT * FROM moves;"
-        moves_data = pd.read_sql_query(moves_query, conn)
+        cursor.execute("SELECT COUNT(*) FROM games")
+        rows = cursor.fetchone()
+        print(f"Number of rows in 'games' table: {rows[0]}")
+        assert rows[0] > 0, "No data found in 'games' table"
 
-        # Split the games data into training, validation, and testing sets
-        train_data, temp_data = train_test_split(
-            games_data, test_size=0.4, random_state=42
-        )
+        cursor.execute("SELECT COUNT(*) FROM moves")
+        rows = cursor.fetchone()
+        print(f"Number of rows in 'moves' table: {rows[0]}")
+        assert rows[0] > 0, "No data found in 'moves' table"
+
+        data = pd.read_sql_query("SELECT * FROM games", conn)
+        print(f"Number of rows in 'data' DataFrame: {len(data)}")
+        assert len(data) > 0, "No data loaded into DataFrame"
+
+        train_data, temp_data = train_test_split(data, test_size=0.4, random_state=42)
         val_data, test_data = train_test_split(
             temp_data, test_size=0.5, random_state=42
         )
+        assert (
+            len(train_data) > 0 and len(val_data) > 0 and len(test_data) > 0
+        ), "Data splitting failed"
 
-        # Create the datasets
+        moves_data = pd.read_sql_query("SELECT * FROM moves", conn)
+
         self.train_dataset = ChessDataset(train_data, moves_data)
         self.val_dataset = ChessDataset(val_data, moves_data)
         self.test_dataset = ChessDataset(test_data, moves_data)
+        assert (
+            len(self.train_dataset) > 0
+            and len(self.val_dataset) > 0
+            and len(self.test_dataset) > 0
+        ), "Dataset creation failed"
 
     def train_dataloader(self):
-        return DataLoader(
-            self.train_dataset, batch_size=32, num_workers=4, pin_memory=True
-        )
+        return DataLoader(self.train_dataset, batch_size=self.batch_size)
 
     def val_dataloader(self):
-        return DataLoader(
-            self.val_dataset, batch_size=32, num_workers=4, pin_memory=True
-        )
+        return DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=7)
 
     def test_dataloader(self):
-        return DataLoader(
-            self.test_dataset, batch_size=32, num_workers=4, pin_memory=True
-        )
+        return DataLoader(self.test_dataset, batch_size=self.batch_size)
 
 
 class ChessModel(pl.LightningModule):
@@ -176,14 +191,15 @@ class ChessModel(pl.LightningModule):
         self.log("test_loss", loss)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.001)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
-        return [optimizer], [scheduler]
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        return optimizer
 
 
 def main():
     # Initialize the DataModule and Model
-    datamodule = ChessDataModule("chess_games.db", batch_size=4096)
+    datamodule = ChessDataModule(
+        "/home/user/repos/a-level_project/chess_games.db", batch_size=4096
+    )
     model = ChessModel()
 
     if not os.path.exists("tb_logs/chess_ai"):
@@ -199,9 +215,6 @@ def main():
 
     # Initialize the Trainer with the logger and the early stopping callback
     trainer = pl.Trainer(
-        gpus=1,
-        precision=16,
-        accumulate_grad_batches=4,
         max_epochs=10,
         logger=logger,
         callbacks=[early_stop_callback],
@@ -213,7 +226,7 @@ def main():
     # Save the model
 
     trainer.save_checkpoint(
-        f"chess_model_{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.ckpt"
+        f"checkpoints/chess_model_{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.ckpt"
     )
 
     # Validate the model
