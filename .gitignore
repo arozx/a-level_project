@@ -17,3 +17,7 @@ todo.md
 
 # tensorboard logs
 tb_logs/
+
+# SQL databases
+*.sqlite3
+*.db
