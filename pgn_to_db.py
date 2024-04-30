@@ -5,6 +5,8 @@ from multiprocessing import Pool
 import chess.pgn
 from alive_progress import alive_bar
 
+from split_file import split_file
+
 # connect to the SQLite database (or create it if it doesn't exist)
 conn = sqlite3.connect("chess_games.db")
 
@@ -78,13 +80,17 @@ def process_game(game):
 
 
 def parse_pgn(file_path):
+    count = 0
     with alive_bar(250000) as bar:
         with Pool() as pool, open(file_path) as pgn:
             game = chess.pgn.read_game(pgn)
             while game is not None:
+                count += 1
                 pool.apply_async(process_and_insert_game, (game,))
                 game = chess.pgn.read_game(pgn)
                 bar()
+                if count % 25 == 0:  # save every 25 games
+                    conn.commit()
 
 
 def process_and_insert_game(game):
@@ -194,9 +200,19 @@ def output_tables(c):
         print(row)
 
 
-output_tables(c)
+if __name__ == "__main__":
+    # load and find number of lines in the file
+    file = "lichess/lichess_db_standard_rated_2014-09.pgn"
+    with open(file) as f:
+        num_lines = sum(1 for line in f)
 
-conn.commit()
+    if num_lines > 4000000:
+        print("The file is too large to be processed splitting it into parts.")
+        num_lines = num_lines // 4000000
+        split_file(file, num_lines)  # split the file into parts
+    for i in range(num_lines):
+        print(f"Parsing part: {i+1}")
+        parse_pgn(f"lichess/lichess_db_standard_rated_2014-09.pgn_part{i+1}")
 
-# close db connection
-conn.close()
+    # close db connection
+    conn.close()
