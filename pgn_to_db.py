@@ -81,7 +81,7 @@ def process_game(game):
 
 def parse_pgn(file_path):
     count = 0
-    with alive_bar(250000) as bar:
+    with alive_bar(4000000) as bar:
         with Pool() as pool, open(file_path) as pgn:
             game = chess.pgn.read_game(pgn)
             while game is not None:
