@@ -186,18 +186,19 @@ def delete_game(c, game_id):
     )
 
 
-def output_tables(c):
-    # output games table
-    c.execute("SELECT * FROM games")
-    print("Games:")
-    for row in c.fetchall():
-        print(row)
-
-    # output moves table
-    c.execute("SELECT * FROM moves")
-    print("\nMoves:")
-    for row in c.fetchall():
-        print(row)
+def output_tables(c, table):
+    if table == 0:
+        # output games table
+        c.execute("SELECT * FROM games")
+        print("Games:")
+        for row in c.fetchall():
+            print(row)
+    elif table == 1:
+        # output moves table
+        c.execute("SELECT * FROM moves")
+        print("\nMoves:")
+        for row in c.fetchall():
+            print(row)
 
 
 if __name__ == "__main__":
