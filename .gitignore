@@ -21,3 +21,7 @@ tb_logs/
 # SQL databases
 *.sqlite3
 *.db
+
+# data
+lichess/
+checkpoints/
