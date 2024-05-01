@@ -1,4 +1,5 @@
 import os
+import shutil
 import sqlite3
 from datetime import datetime
 
@@ -12,6 +13,7 @@ from sklearn.model_selection import train_test_split
 from torch import nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.tensorboard import SummaryWriter
 
 
 class ChessDataset(Dataset):
@@ -39,7 +41,16 @@ class ChessDataset(Dataset):
         game_state = board.fen()
         x = self.game_to_tensor(game_state)
 
-        y = game["result"]
+        # Convert the game result to a numerical value
+        result = game["result"]
+        if result == "1-0":
+            y_value = 1.0
+        elif result == "0-1":
+            y_value = 0.0
+        else:  # "1/2-1/2"
+            y_value = 0.5
+
+        y = torch.tensor(y_value, dtype=torch.float32)  # Ensure y is a tensor
         return x, y
 
     @staticmethod
@@ -137,20 +148,22 @@ class ChessDataModule(pl.LightningDataModule):
         ), "Dataset creation failed"
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.batch_size)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=7)
 
     def val_dataloader(self):
         return DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=7)
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=self.batch_size)
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=7)
 
 
 class ChessModel(pl.LightningModule):
     def __init__(self):
         super(ChessModel, self).__init__()
         # Convolutional layers
-        self.conv1 = nn.Conv2d(12, 64, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv2d(
+            in_channels=13, out_channels=64, kernel_size=3, stride=1, padding=1
+        )
         self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
         self.conv3 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
 
@@ -160,6 +173,9 @@ class ChessModel(pl.LightningModule):
         self.fc3 = nn.Linear(512, 1)  # Output layer
 
     def forward(self, x):
+        x = x.view(
+            -1, 13, 8, 8
+        )  # Reshape from (batch_size, 832) to (batch_size, 13, 8, 8)
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
@@ -169,26 +185,34 @@ class ChessModel(pl.LightningModule):
 
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        x = torch.tanh(self.fc3(x))  # Output between -1 and 1
+        x = self.fc3(x)  # No activation function
         return x
 
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        loss = F.cross_entropy(y_hat, y.long())  # Convert y to long type
-        self.log("train_loss", loss)
+        y = y.view(y_hat.shape)  # Add this line to reshape y
+        loss = F.mse_loss(y_hat, y)  # Use MSE loss for regression
+        self.log(
+            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        loss = F.cross_entropy(y_hat, y.long())  # Convert y to long type
-        self.log("val_loss", loss)
+        x, y = batch  # Unpack the batch into input and target tensors
+        x = x.view(x.size(0), -1)  # Flatten the input tensor
+        y_hat = self(x)  # Pass the input tensor through the model
+        loss = F.mse_loss(y_hat, y)  # Use MSE loss for regression
+        self.log(
+            "val_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )  # Log the loss
 
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        loss = F.cross_entropy(y_hat, y.long())  # Convert y to long type
-        self.log("test_loss", loss)
+        loss = F.mse_loss(y_hat, y)  # Use MSE loss for regression
+        self.log(
+            "test_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -202,8 +226,13 @@ def main():
     )
     model = ChessModel()
 
-    if not os.path.exists("tb_logs/chess_ai"):
-        os.makedirs("tb_logs/chess_ai")
+    # remove old logs
+    if os.path.exists("tb_logs/chess_ai"):
+        print("removing old logs...")
+        shutil.rmtree("tb_logs/chess_ai")
+
+    # create the directory for the TensorBoard logs
+    os.makedirs("tb_logs/chess_ai")
 
     # Initialize the TensorBoard logger
     logger = TensorBoardLogger("tb_logs", name="chess_ai")
@@ -218,13 +247,13 @@ def main():
         max_epochs=10,
         logger=logger,
         callbacks=[early_stop_callback],
+        log_every_n_steps=1,
     )
 
     # Train the model
     trainer.fit(model, datamodule)
 
     # Save the model
-
     trainer.save_checkpoint(
         f"checkpoints/chess_model_{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}.ckpt"
     )
@@ -234,6 +263,40 @@ def main():
 
     # Test the model
     trainer.test()
+
+    # Initialize the TensorBoard writer and add the model graph
+    writer = SummaryWriter(log_dir="tb_logs/chess_ai")
+    x, _ = next(iter(datamodule.train_dataloader()))
+    writer.add_graph(model, x)
+
+    # Initialize the global_step counter
+    global_step = 0
+
+    # Start the training loop
+    for epoch in range(10):
+        for x, y in datamodule.train_dataloader():
+            # Forward pass through the model
+            y_pred = model(x)
+
+            # Compute the loss
+            loss = F.cross_entropy(y_pred, y)
+
+            # Compute the accuracy
+            accuracy = (y_pred.argmax(dim=1) == y).float().mean()
+
+            # Log the loss and accuracy
+            writer.add_scalar("Loss/train", loss, global_step=global_step)
+            writer.add_scalar("Accuracy/train", accuracy, global_step=global_step)
+
+            # Log the gradients and model parameters
+            for name, param in model.named_parameters():
+                writer.add_histogram(
+                    f"{name}/grad", param.grad, global_step=global_step
+                )
+                writer.add_histogram(f"{name}/param", param, global_step=global_step)
+
+            # Increment the global_step counter
+            global_step += 1
 
 
 if __name__ == "__main__":
