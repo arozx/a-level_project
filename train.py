@@ -117,16 +117,16 @@ class ChessDataModule(pl.LightningDataModule):
 
         cursor.execute("SELECT COUNT(*) FROM games")
         rows = cursor.fetchone()
-        print(f"Number of rows in 'games' table: {rows[0]}")
+        print(f"Number of rows in 'games' table: {rows[0]:,}")
         assert rows[0] > 0, "No data found in 'games' table"
 
         cursor.execute("SELECT COUNT(*) FROM moves")
         rows = cursor.fetchone()
-        print(f"Number of rows in 'moves' table: {rows[0]}")
+        print(f"Number of rows in 'moves' table: {rows[0]:,}")
         assert rows[0] > 0, "No data found in 'moves' table"
 
         data = pd.read_sql_query("SELECT * FROM games", conn)
-        print(f"Number of rows in 'data' DataFrame: {len(data)}")
+        print(f"Number of rows in 'data' DataFrame: {len(data):,}")
         assert len(data) > 0, "No data loaded into DataFrame"
 
         train_data, temp_data = train_test_split(data, test_size=0.4, random_state=42)
