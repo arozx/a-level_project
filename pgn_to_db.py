@@ -96,7 +96,20 @@ def parse_pgn(file_path):
 def process_and_insert_game(game):
     game_data, moves_data = process_game(game)
     with conn:
+        # Get the last game_id
+        c.execute("SELECT MAX(id) FROM games")
+        last_game_id = c.fetchone()[0]
+
+        # If there are no games in the database, start from 1
+        if last_game_id is None:
+            last_game_id = 1
+        else:
+            last_game_id += 1
+
+        # Insert the new game with the incremented game_id
+        game_data = (last_game_id,) + game_data
         game_id = insert_into_games(c, game_data)
+
         for move_data in moves_data:
             move_data = (game_id,) + move_data
             insert_into_moves(c, move_data)
@@ -210,7 +223,15 @@ if __name__ == "__main__":
     if num_lines > 4000000:
         print("The file is too large to be processed splitting it into parts.")
         num_lines = num_lines // 4000000
-        split_file(file, num_lines)  # split the file into parts
+        # check if the split file exists
+        for i in range(num_lines):
+            try:
+                with open(
+                    f"lichess/lichess_db_standard_rated_2014-09.pgn_part{i+1}"
+                ) as f:
+                    pass
+            except FileNotFoundError:
+                split_file(file, num_lines)  # split the file into parts
     for i in range(num_lines):
         print(f"Parsing part: {i+1}")
         parse_pgn(f"lichess/lichess_db_standard_rated_2014-09.pgn_part{i+1}")
