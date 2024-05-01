@@ -1,4 +1,5 @@
 import gc
+import multiprocessing
 import os
 import shutil
 import sqlite3
@@ -101,6 +102,8 @@ class ChessDataModule(pl.LightningDataModule):
         super().__init__()
         self.db_path = db_path
         self.batch_size = batch_size
+        # * number of CPU cores abaialiable
+        self.num_workers = multiprocessing.cpu_count() - 1
 
     def setup(self, stage=None):
         assert os.path.exists(
