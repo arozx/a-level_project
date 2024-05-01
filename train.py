@@ -1,3 +1,4 @@
+import gc
 import os
 import shutil
 import sqlite3
@@ -247,7 +248,7 @@ def main():
         max_epochs=10,
         logger=logger,
         callbacks=[early_stop_callback],
-        log_every_n_steps=1,
+        log_every_n_steps=10,
     )
 
     # Train the model
@@ -269,34 +270,32 @@ def main():
     x, _ = next(iter(datamodule.train_dataloader()))
     writer.add_graph(model, x)
 
-    # Initialize the global_step counter
-    global_step = 0
+    # Get a batch of data
+    x, y = next(iter(datamodule.train_dataloader()))
 
-    # Start the training loop
-    for epoch in range(10):
-        for x, y in datamodule.train_dataloader():
-            # Forward pass through the model
-            y_pred = model(x)
+    # Forward pass through the model
+    y_pred = model(x)
 
-            # Compute the loss
-            loss = F.cross_entropy(y_pred, y)
+    # Compute the loss
+    loss = F.cross_entropy(y_pred, y)
 
-            # Compute the accuracy
-            accuracy = (y_pred.argmax(dim=1) == y).float().mean()
+    # Compute the accuracy
+    accuracy = (y_pred.argmax(dim=1) == y).float().mean()
 
-            # Log the loss and accuracy
-            writer.add_scalar("Loss/train", loss, global_step=global_step)
-            writer.add_scalar("Accuracy/train", accuracy, global_step=global_step)
+    # Log the loss and accuracy
+    writer.add_scalar("Loss/train", loss, global_step=470)
+    writer.add_scalar("Accuracy/train", accuracy, global_step=470)
 
-            # Log the gradients and model parameters
-            for name, param in model.named_parameters():
-                writer.add_histogram(
-                    f"{name}/grad", param.grad, global_step=global_step
-                )
-                writer.add_histogram(f"{name}/param", param, global_step=global_step)
+    # Log the gradients and model parameters
+    for name, param in model.named_parameters():
+        writer.add_histogram(f"{name}/grad", param.grad, global_step=470)
+        writer.add_histogram(f"{name}/param", param, global_step=470)
 
-            # Increment the global_step counter
-            global_step += 1
+    # Delete unnecessary variables
+    del x, y, y_pred, loss, accuracy
+
+    # Force garbage collection
+    gc.collect()
 
 
 if __name__ == "__main__":
