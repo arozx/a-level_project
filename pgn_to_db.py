@@ -1,8 +1,8 @@
 import os
 import re
 import sqlite3
-import tempfile
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Queue
+from threading import Thread
 from time import sleep
 
 import chess.pgn
@@ -11,7 +11,7 @@ from alive_progress import alive_bar
 from split_file import split_file
 
 # connect to the SQLite database (or create it if it doesn't exist)
-database = os.getcwd() + "/chess_games.db"
+database = os.getcwd() + "/test_chess_games.db"
 conn = sqlite3.connect(database)
 print("opening database at:", database)
 sleep(2)
@@ -124,48 +124,43 @@ def process_game(game):
     return game_data, moves_data
 
 
-def producer(db_conn, files):
-    cursor = db_conn.cursor()
+def producer(queue, files):
     for file_path in files:
         with open(file_path) as pgn:
             game = chess.pgn.read_game(pgn)
             while game is not None:
-                cursor.execute("INSERT INTO queue (game) VALUES (?)", (game,))
+                queue.put(game)
                 game = chess.pgn.read_game(pgn)
-    db_conn.commit()
+    queue.put("DONE")
 
 
-def consumer(db_conn, bar):
-    cursor = db_conn.cursor()
-    with Pool(cpu_count) as pool:
-        while True:
-            cursor.execute("SELECT id, game FROM queue ORDER BY id LIMIT 1")
-            result = cursor.fetchone()
-            if result is None:
-                break
-            id, game = result
-            pool.apply_async(process_and_insert_game(game))
-            cursor.execute("DELETE FROM queue WHERE id = ?", (id,))
-            bar()
-    db_conn.commit()
+def consumer(queue, bar):
+    while True:
+        game = queue.get()
+        if game == "DONE":
+            break
+        # Create a new SQLite connection and cursor for this thread
+        conn = sqlite3.connect("my_database.db")
+        c = conn.cursor()
+        process_and_insert_game(c, game)
+        bar()
+        conn.close()
 
 
 def parse_pgn(files, line_count):
-    db_file = os.path.join(tempfile.gettempdir(), "queue.db")
-    db_conn = sqlite3.connect(db_file)
-    db_conn.execute(
-        "CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, game BLOB)"
-    )
-
+    queue = Queue()
     with alive_bar(line_count) as bar:
-        producer(db_conn, files)
-        consumer(db_conn, bar)
+        producer_thread = Thread(target=producer, args=(queue, files))
+        consumer_thread = Thread(target=consumer, args=(queue, bar))
 
-    db_conn.close()
-    os.remove(db_file)
+        producer_thread.start()
+        consumer_thread.start()
+
+        producer_thread.join()
+        consumer_thread.join()
 
 
-def process_and_insert_game(game):
+def process_and_insert_game(c, game):
     game_data, moves_data = process_game(game)
     with conn:
         # Insert the new game with the incremented game_id
@@ -236,30 +231,36 @@ def output_tables(c, table):
             print(row)
 
 
+def count_games_in_pgn(file_path):
+    with open(file_path) as pgn:
+        game_count = 0
+        while chess.pgn.read_game(pgn):
+            game_count += 1
+        return game_count
+
+
 if __name__ == "__main__":
     files = []
     # load and find number of lines in the file
     file = "lichess/lichess_db_standard_rated_2014-09.pgn"
 
-    with open(file) as f:
-        num_lines = sum(1 for line in f)
-    line_count = num_lines
+    games = count_games_in_pgn(file)
 
-    if num_lines > 4000000:
+    if games > 10_000:
+        games = games // 10_000
         print("The file is too large to be processed splitting it into parts.")
-        num_lines = num_lines // 4000000
-        # check if the split file exists
-        for i in range(num_lines):
+        split_file(file, games)
+        for i in games:
             try:
                 with open(
                     f"lichess/lichess_db_standard_rated_2014-09.pgn_part{i+1}"
                 ) as f:
                     pass
             except FileNotFoundError:
-                split_file(file, num_lines)  # split the file into parts
+                split_file(file, games)  # split the file into parts
 
             files.append(f"{file}_part{i+1}")
 
-    parse_pgn(files, line_count)
+    parse_pgn(files, games)
     # close db connection
     conn.close()
