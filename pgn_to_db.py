@@ -1,6 +1,9 @@
+import os
 import re
 import sqlite3
-from multiprocessing import Pool
+import tempfile
+from multiprocessing import Pool, cpu_count
+from time import sleep
 
 import chess.pgn
 from alive_progress import alive_bar
@@ -8,9 +11,51 @@ from alive_progress import alive_bar
 from split_file import split_file
 
 # connect to the SQLite database (or create it if it doesn't exist)
-conn = sqlite3.connect("chess_games.db")
+database = os.getcwd() + "/chess_games.db"
+conn = sqlite3.connect(database)
+print("opening database at:", database)
+sleep(2)
+
 
 c = conn.cursor()
+
+# create games table
+c.execute("""
+CREATE TABLE IF NOT EXISTS games (
+  id INTEGER PRIMARY KEY,
+  event TEXT,
+  site TEXT,
+  date TEXT,
+  round TEXT,
+  white TEXT,
+  black TEXT,
+  result TEXT,
+  utc_date TEXT,
+  utc_time TEXT,
+  white_elo INTEGER,
+  black_elo INTEGER,
+  white_rating_diff INTEGER,
+  black_rating_diff INTEGER,
+  white_title TEXT,
+  eco TEXT,
+  opening TEXT,
+  time_control TEXT,
+  termination TEXT
+)
+""")
+
+# create moves table
+c.execute("""
+CREATE TABLE IF NOT EXISTS moves (
+  id INTEGER PRIMARY KEY,
+  game_id INTEGER,
+  move_number INTEGER,
+  move TEXT,
+  evaluation REAL,
+  clock TEXT,
+  FOREIGN KEY(game_id) REFERENCES games(id)
+)
+""")
 
 
 def process_game(game):
@@ -79,79 +124,56 @@ def process_game(game):
     return game_data, moves_data
 
 
-def parse_pgn(file_path):
-    count = 0
-    with alive_bar(4000000) as bar:
-        with Pool() as pool, open(file_path) as pgn:
+def producer(db_conn, files):
+    cursor = db_conn.cursor()
+    for file_path in files:
+        with open(file_path) as pgn:
             game = chess.pgn.read_game(pgn)
             while game is not None:
-                count += 1
-                pool.apply_async(process_and_insert_game, (game,))
+                cursor.execute("INSERT INTO queue (game) VALUES (?)", (game,))
                 game = chess.pgn.read_game(pgn)
-                bar()
-                if count % 25 == 0:  # save every 25 games
-                    conn.commit()
+    db_conn.commit()
+
+
+def consumer(db_conn, bar):
+    cursor = db_conn.cursor()
+    with Pool(cpu_count) as pool:
+        while True:
+            cursor.execute("SELECT id, game FROM queue ORDER BY id LIMIT 1")
+            result = cursor.fetchone()
+            if result is None:
+                break
+            id, game = result
+            pool.apply_async(process_and_insert_game(game))
+            cursor.execute("DELETE FROM queue WHERE id = ?", (id,))
+            bar()
+    db_conn.commit()
+
+
+def parse_pgn(files, line_count):
+    db_file = os.path.join(tempfile.gettempdir(), "queue.db")
+    db_conn = sqlite3.connect(db_file)
+    db_conn.execute(
+        "CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, game BLOB)"
+    )
+
+    with alive_bar(line_count) as bar:
+        producer(db_conn, files)
+        consumer(db_conn, bar)
+
+    db_conn.close()
+    os.remove(db_file)
 
 
 def process_and_insert_game(game):
     game_data, moves_data = process_game(game)
     with conn:
-        # Get the last game_id
-        c.execute("SELECT MAX(id) FROM games")
-        last_game_id = c.fetchone()[0]
-
-        # If there are no games in the database, start from 1
-        if last_game_id is None:
-            last_game_id = 1
-        else:
-            last_game_id += 1
-
         # Insert the new game with the incremented game_id
-        game_data = (last_game_id,) + game_data
         game_id = insert_into_games(c, game_data)
 
         for move_data in moves_data:
             move_data = (game_id,) + move_data
             insert_into_moves(c, move_data)
-
-
-# create games table
-c.execute("""
-CREATE TABLE IF NOT EXISTS games (
-  id INTEGER PRIMARY KEY,
-  event TEXT,
-  site TEXT,
-  date TEXT,
-  round TEXT,
-  white TEXT,
-  black TEXT,
-  result TEXT,
-  utc_date TEXT,
-  utc_time TEXT,
-  white_elo INTEGER,
-  black_elo INTEGER,
-  white_rating_diff INTEGER,
-  black_rating_diff INTEGER,
-  white_title TEXT,
-  eco TEXT,
-  opening TEXT,
-  time_control TEXT,
-  termination TEXT
-)
-""")
-
-# create moves table
-c.execute("""
-CREATE TABLE IF NOT EXISTS moves (
-  id INTEGER PRIMARY KEY,
-  game_id INTEGER,
-  move_number INTEGER,
-  move TEXT,
-  evaluation REAL,
-  clock TEXT,
-  FOREIGN KEY(game_id) REFERENCES games(id)
-)
-""")
 
 
 def insert_into_games(c, data):
@@ -215,10 +237,13 @@ def output_tables(c, table):
 
 
 if __name__ == "__main__":
+    files = []
     # load and find number of lines in the file
     file = "lichess/lichess_db_standard_rated_2014-09.pgn"
+
     with open(file) as f:
         num_lines = sum(1 for line in f)
+    line_count = num_lines
 
     if num_lines > 4000000:
         print("The file is too large to be processed splitting it into parts.")
@@ -232,9 +257,9 @@ if __name__ == "__main__":
                     pass
             except FileNotFoundError:
                 split_file(file, num_lines)  # split the file into parts
-    for i in range(num_lines):
-        print(f"Parsing part: {i+1}")
-        parse_pgn(f"lichess/lichess_db_standard_rated_2014-09.pgn_part{i+1}")
 
+            files.append(f"{file}_part{i+1}")
+
+    parse_pgn(files, line_count)
     # close db connection
     conn.close()
