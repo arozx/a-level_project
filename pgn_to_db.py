@@ -1,17 +1,35 @@
+import argparse
+import concurrent.futures
+import cProfile
 import os
-import re
+import pstats
 import sqlite3
-from multiprocessing import Queue
-from threading import Thread
+from multiprocessing import cpu_count
 from time import sleep
 
 import chess.pgn
+import pandas as pd
 from alive_progress import alive_bar
 
 from split_file import split_file
 
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-d",
+    "--database",
+    help="Name of the database to be created",
+    type=str,
+    default="chess_games",
+)
+
+database = parser.parse_args().database
+
+if os.name == "nt":  # check if windows
+    database = os.getcwd() + f"\\{database}.db"
+else:  # UNIX style path (osx, linux, etc.)
+    database = os.getcwd() + f"/{database}.db"
+
 # connect to the SQLite database (or create it if it doesn't exist)
-database = os.getcwd() + "/test_chess_games.db"
 conn = sqlite3.connect(database)
 print("opening database at:", database)
 sleep(2)
@@ -40,7 +58,8 @@ CREATE TABLE IF NOT EXISTS games (
   eco TEXT,
   opening TEXT,
   time_control TEXT,
-  termination TEXT
+  termination TEXT,
+  moves TEXT
 )
 """)
 
@@ -58,140 +77,6 @@ CREATE TABLE IF NOT EXISTS moves (
 """)
 
 
-def process_game(game):
-    # extract headers
-    headers = game.headers
-    event = headers.get("Event", "")
-    site = headers.get("Site", "")
-    date = headers.get("Date", "")
-    round = headers.get("Round", "")
-    white = headers.get("White", "")
-    black = headers.get("Black", "")
-    result = headers.get("Result", "")
-    utc_date = headers.get("UTCDate", "")
-    utc_time = headers.get("UTCTime", "")
-    white_elo = headers.get("WhiteElo", "")
-    black_elo = headers.get("BlackElo", "")
-    white_rating_diff = headers.get("WhiteRatingDiff", "")
-    black_rating_diff = headers.get("BlackRatingDiff", "")
-    white_title = headers.get("WhiteTitle", "")
-    eco = headers.get("ECO", "")
-    opening = headers.get("Opening", "")
-    time_control = headers.get("TimeControl", "")
-    termination = headers.get("Termination", "")
-
-    game_data = (
-        event,
-        site,
-        date,
-        round,
-        white,
-        black,
-        result,
-        utc_date,
-        utc_time,
-        white_elo,
-        black_elo,
-        white_rating_diff,
-        black_rating_diff,
-        white_title,
-        eco,
-        opening,
-        time_control,
-        termination,
-    )
-
-    moves_data = []
-    node = game
-    move_number = 1
-    while not node.is_end():
-        next_node = node.variation(0)
-        move = str(next_node.move)
-
-        # extract evaluation and clock time from comment
-        comment = next_node.comment
-        eval_match = re.search(r"\[%eval ([^\]]+)\]", comment)
-        clock_match = re.search(r"\[%clk ([^\]]+)\]", comment)
-        evaluation = eval_match.group(1) if eval_match else None
-        clock = clock_match.group(1) if clock_match else None
-
-        move_data = (move_number, move, evaluation, clock)
-        moves_data.append(move_data)
-
-        node = next_node
-        move_number += 1
-
-    return game_data, moves_data
-
-
-def producer(queue, files):
-    for file_path in files:
-        with open(file_path) as pgn:
-            game = chess.pgn.read_game(pgn)
-            while game is not None:
-                queue.put(game)
-                game = chess.pgn.read_game(pgn)
-    queue.put("DONE")
-
-
-def consumer(queue, bar):
-    while True:
-        game = queue.get()
-        if game == "DONE":
-            break
-        # Create a new SQLite connection and cursor for this thread
-        conn = sqlite3.connect("my_database.db")
-        c = conn.cursor()
-        process_and_insert_game(c, game)
-        bar()
-        conn.close()
-
-
-def parse_pgn(files, line_count):
-    queue = Queue()
-    with alive_bar(line_count) as bar:
-        producer_thread = Thread(target=producer, args=(queue, files))
-        consumer_thread = Thread(target=consumer, args=(queue, bar))
-
-        producer_thread.start()
-        consumer_thread.start()
-
-        producer_thread.join()
-        consumer_thread.join()
-
-
-def process_and_insert_game(c, game):
-    game_data, moves_data = process_game(game)
-    with conn:
-        # Insert the new game with the incremented game_id
-        game_id = insert_into_games(c, game_data)
-
-        for move_data in moves_data:
-            move_data = (game_id,) + move_data
-            insert_into_moves(c, move_data)
-
-
-def insert_into_games(c, data):
-    c.execute(
-        """
-    INSERT INTO games (event, site, date, round, white, black, result, utc_date, utc_time, white_elo, black_elo, white_rating_diff, black_rating_diff, white_title, eco, opening, time_control, termination) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """,
-        data,
-    )
-    return c.lastrowid
-
-
-def insert_into_moves(c, data):
-    c.execute(
-        """
-    INSERT INTO moves (game_id, move_number, move, evaluation, clock) 
-    VALUES (?, ?, ?, ?, ?)
-    """,
-        data,
-    )
-
-
 def delete_moves(c, game_id):
     c.execute(
         """
@@ -203,10 +88,10 @@ def delete_moves(c, game_id):
 
 
 def delete_game(c, game_id):
-    # First delete all moves associated with the game
+    # delete all moves associated with the game
     delete_moves(c, game_id)
 
-    # Then delete the game itself
+    # delete the game itself
     c.execute(
         """
         DELETE FROM games 
@@ -233,34 +118,142 @@ def output_tables(c, table):
 
 def count_games_in_pgn(file_path):
     with open(file_path) as pgn:
-        game_count = 0
-        while chess.pgn.read_game(pgn):
-            game_count += 1
-        return game_count
+        count = 0
+        for line in pgn:
+            if line[0:6] == "[Event":
+                count += 1
+    return count
+
+
+def add_game_to_db(game, file_id):
+    headers = game.headers
+    white = headers.get("White", "Unknown")
+    black = headers.get("Black", "Unknown")
+    result = headers.get("Result", "Unknown")
+    white_elo = headers.get("WhiteElo", "Unknown")
+    black_elo = headers.get("BlackElo", "Unknown")
+    event = headers.get("Event", "Unknown")
+    site = headers.get("Site", "Unknown")
+    date = headers.get("Date", "Unknown")
+    round = headers.get("Round", "Unknown")
+    utc_date = headers.get("UTCDate", "Unknown")
+    utc_time = headers.get("UTCTime", "Unknown")
+    white_rating_diff = headers.get("WhiteRatingDiff", "Unknown")
+    black_rating_diff = headers.get("BlackRatingDiff", "Unknown")
+    white_title = headers.get("WhiteTitle", "Unknown")
+    eco = headers.get("ECO", "Unknown")
+    opening = headers.get("Opening", "Unknown")
+    time_control = headers.get("TimeControl", "Unknown")
+    termination = headers.get("Termination", "Unknown")
+
+    # get moves of the game
+    try:
+        moves = " ".join(str(move) for move in game.mainline_moves())
+    except ValueError:
+        print("Illegal move encountered. Skipping game...")
+        return None
+
+    # add the game to the list
+    game_data = {
+        "file_id": file_id,
+        "white": white,
+        "black": black,
+        "result": result,
+        "white_elo": white_elo,
+        "black_elo": black_elo,
+        "event": event,
+        "site": site,
+        "date": date,
+        "round": round,
+        "utc_date": utc_date,
+        "utc_time": utc_time,
+        "white_rating_diff": white_rating_diff,
+        "black_rating_diff": black_rating_diff,
+        "white_title": white_title,
+        "eco": eco,
+        "opening": opening,
+        "time_control": time_control,
+        "termination": termination,
+        "moves": moves,
+    }
+
+    return game_data
+
+
+def process_game(file, game_number):
+    file_id = os.path.basename(file)  # file_id is basename
+    with open(file) as pgn:
+        game = chess.pgn.read_game(pgn)
+        if game is None:
+            return None  # end of file
+        return add_game_to_db(game, file_id)
+
+
+def process_file(file):
+    games_list = []
+    max_workers = cpu_count()
+    with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        future_to_game = {
+            executor.submit(process_game, file, game_number): game_number
+            for game_number in range(100000)
+        }
+        with alive_bar(len(future_to_game), title="Processing") as bar:
+            for future in concurrent.futures.as_completed(future_to_game):
+                game_data = future.result()
+                if game_data is None:
+                    break  # end of file
+                games_list.append(game_data)
+                if len(games_list) >= 1000:  # batch size
+                    df = pd.DataFrame(games_list)
+                    df.drop(
+                        columns=["file_id"], inplace=True
+                    )  # drop the file_id column before inserting into the database
+                    df.to_sql("games", conn, if_exists="append", index=False)
+                    games_list = []  # clear the list
+                bar()  # update bar status
+    print("finished processing file:", file)
+    conn.commit()
+
+
+def process_files():
+    for file in files:
+        process_file(file)
 
 
 if __name__ == "__main__":
     files = []
     # load and find number of lines in the file
-    file = "lichess/lichess_db_standard_rated_2014-09.pgn"
-
+    file = "./lichess/lichess_db_standard_rated_2014-09.pgn"
+    print("Counting games in the file...")
     games = count_games_in_pgn(file)
+    print(f"number of games, {games:,}")
+    num_games = games
 
-    if games > 10_000:
-        games = games // 10_000
+    if games > 100_000:
+        games = games // 100_000
         print("The file is too large to be processed splitting it into parts.")
         split_file(file, games)
-        for i in games:
+        for i in range(games):
             try:
                 with open(
                     f"lichess/lichess_db_standard_rated_2014-09.pgn_part{i+1}"
                 ) as f:
                     pass
             except FileNotFoundError:
-                split_file(file, games)  # split the file into parts
+                split_file(file, games)
 
             files.append(f"{file}_part{i+1}")
 
-    parse_pgn(files, games)
+    # run the process_files function with profiling
+    print("Processing files...")
+    profiler = cProfile.Profile()
+    profiler.enable()
+    process_files()
+    profiler.disable()
+
+    # output the profiling results
+    stats = pstats.Stats(profiler)
+    stats.dump_stats("profiling_results.pstats")
+
     # close db connection
     conn.close()
