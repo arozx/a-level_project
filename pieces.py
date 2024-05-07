@@ -1,4 +1,4 @@
-# Piece classes
+# define the default parent piece class
 class Piece:
     def __init__(self, colour):
         self.colour = colour
@@ -22,7 +22,7 @@ class Rook(Piece):
         valid_moves = []
         valid_moves.append((x, y))
 
-        # Check if the square in front of the rook is empty
+        # check if the square in front of the rook is empty
         for i in range(1, 8):
             if y + i <= 7:
                 if board[x][y + i] is None:
@@ -77,6 +77,7 @@ class Knight(Piece):
 
     def getValidMoves(self, board, x, y):
         valid_moves = []
+        # calculate all L shaped moves
         moves = [(1, 2), (1, -2), (-1, 2), (-1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1)]
         for dx, dy in moves:
             nx, ny = x + dx, y + dy
@@ -91,7 +92,6 @@ class Bishop(Piece):
         super().__init__(colour)
         self.weight = 3
 
-    # TODO fix bug where bishop is duplicated after a move
     def getValidMoves(self, board, x, y):
         valid_moves = []
         # Check diagonal up-right
@@ -148,6 +148,7 @@ class Queen(Piece):
 
     def getValidMoves(self, board, x, y):
         valid_moves = []
+        # define movement directions
         directions = [
             (0, 1),
             (0, -1),
@@ -158,6 +159,7 @@ class Queen(Piece):
             (-1, 1),
             (-1, -1),
         ]
+        # itterate thorugh all directions
         for dx, dy in directions:
             nx, ny = x + dx, y + dy
             while 0 <= nx < 8 and 0 <= ny < 8:
@@ -179,6 +181,7 @@ class King(Piece):
 
     def getValidMoves(self, board, x, y):
         valid_moves = []
+        # define movement directions
         directions = [
             (0, 1),
             (0, -1),
@@ -189,6 +192,7 @@ class King(Piece):
             (-1, 1),
             (-1, -1),
         ]
+        # itterate thorugh all directions
         for dx, dy in directions:
             nx, ny = x + dx, y + dy
             if 0 <= nx < 8 and 0 <= ny < 8:
@@ -207,23 +211,23 @@ class Pawn(Piece):
         print(f"PAWN getValidMoves: colour = {self.colour}")
         valid_moves = []
         valid_moves.append((x, y))
-        # Check if the square in front of the pawn is empty
+        # check if the square in front of the pawn is empty
         if self.colour == "black" and x - 1 >= 0:
             if board[x - 1][y] is None:
                 valid_moves.append((x - 1, y))
-                # Check if the pawn is on its first move and if the square two squares in front of the pawn is empty
+                # check if the pawn is on its first move and if the square two squares in front of the pawn is empty
                 if self.firstMove and x - 2 >= 0 and board[x - 2][y] is None:
                     valid_moves.append((x - 2, y))
 
         if self.colour == "white" and x + 1 < len(board):
             if board[x + 1][y] is None:
                 valid_moves.append((x + 1, y))
-                # Check if the pawn is on its first move and if the square two squares in front of the pawn is empty
+                # check if the pawn is on its first move and if the square two squares in front of the pawn is empty
                 if self.firstMove and x + 2 < len(board) and board[x + 2][y] is None:
                     valid_moves.append((x + 2, y))
 
-        # * Capturing pieces diagonally forward
-        direction = 1 if self.colour == "white" else -1
+        # check for diagonal capture
+        direction = 1 if self.colour == "white" else -1  # set based on colour
         for dy in [-1, 1]:
             nx, ny = x + direction, y + dy
             if 0 <= nx < len(board) and 0 <= ny < len(board[nx]):

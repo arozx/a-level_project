@@ -17,6 +17,7 @@ class ChessBoard:
         self.selectedButton = None
         self.highlightedSquares = []
 
+        # setup promotion window to be called as needed
         self.promotionWindow = PromotionWindow()
         self.promotionWindow.pieceSelected.connect(self.handlePieceSelected)
 
@@ -44,6 +45,7 @@ class ChessBoard:
         for i in range(8):
             self.board[6][i] = Pawn("black")
 
+    # called when a piece is selected & promotion window is open
     def handlePieceSelected(self, piece):
         logging.info(f"Piece selected: {piece}")
         self.promotionWindow.close()
@@ -54,29 +56,19 @@ class ChessBoard:
             for y in range(len(self.board[x])):
                 if self.board[x][y] == piece:
                     return x, y
-        return None  # Return None if the piece is not found
+        return None  # return None if the piece is not found
 
-    # Checks if a piece & square have been clicked, Then call movePiece
+    # check if a piece & square have been clicked, then call movePiece
     def checkMove(self, piece, square):
         print(f"CheckMove; Piece: {piece} : Square: {square}")
         if piece is not None and square is not None:
             x, y = [int(i) for i in square.split(",")]
             if self.selectedButton is None:
                 self.selectedButton = self.buttons[square]
+                # set the background colour of the selected button to yellow
                 self.selectedButton.setStyleSheet(
                     "background-color: yellow; border: None"
                 )
-                """
-                if (
-                    self.board[x][y] is not None
-                    and self.board[x][y].colour == self.playerTurn
-                ):
-                    print(f"{self.board[x][y].__class__.__name__} : is the same colour")
-                else:
-                    print(
-                        f"{self.board[x][y].__class__.__name__} : is not the same colour"
-                    )
-                """
                 valid_moves = self.getValidMoves(self.board, x, y)
                 try:
                     print(f"cur x = {valid_moves[0][0]} cur y = {valid_moves[0][1]}")
@@ -88,14 +80,13 @@ class ChessBoard:
                 current_x, current_y = self.find_piece_coordinates(piece)
                 print(f"{current_x} : current x\n {current_y} : current y")
 
-                # Pass new_x and new_y to highlightSquares
-                # Check that the squares are defined
+                # pass new_x and new_y to highlightSquares
+                # check that the squares are defined
                 if current_x is not None and current_y is not None:
-                    self.drawSquare(current_x, current_y)  # Reset the background colour
-                    # Deselct the current button
-                    self.selectedButton = None
+                    self.drawSquare(current_x, current_y)
+                    self.selectedButton = None  # deselect the currently selected button
 
-    # Draw the board
+    # draw the board
     def drawSquare(self, x, y):
         button = QPushButton()
         button.setFixedSize(100, 100)
@@ -111,18 +102,18 @@ class ChessBoard:
         #! For development purposes / Debugging
         button.setText(f"{x},{y}")
 
-        #! WTF is this (if delete is breaks program)
+        # set the objectName property to the coordinates of the square
         self.buttons[f"{x},{y}"] = button
 
         button.setObjectName(f"{x},{y}")
 
-        # Disconnect existing connections
+        # disconnect existing connections
         try:
             button.clicked.disconnect()
         except TypeError:
-            pass  # Ignore if no connections were present
+            pass  # ignore if no connections were present
 
-        # Connect the clicked signal of the button to check if a piece and a square have been clicked
+        # connect the clicked signal to check if a piece and a square have been clicked
         button.clicked.connect(
             lambda _,
             piece=self.board[x][y],
@@ -130,20 +121,20 @@ class ChessBoard:
         )
         return button
 
-    # Draw the chess board
+    # draw the chess board
     def drawBoard(self, layout):
         for x in range(8):
             for y in range(8):
                 button = self.drawSquare(x, y)
                 layout.addWidget(button, x, y)
 
-        # Check if there is a piece on the square and call drawPiece
+        # check if there is a piece on the square and call drawPiece
         for x in range(8):
             for y in range(8):
                 if self.board[x][y] is not None:
                     self.drawPiece(self.buttons[f"{x},{y}"], self.board[x][y])
 
-    # Draw image on a button
+    # draw image / piece on a button
     def drawPiece(self, button, piece):
         if piece is not None and piece.__class__.__name__ != "None":
             icon = QIcon(f"media/{piece.colour}/{piece.__class__.__name__}.svg")
@@ -151,11 +142,11 @@ class ChessBoard:
             button.setIconSize(button.size())
             button.setObjectName(
                 f"{piece.x},{piece.y}"
-            )  # Set the objectName property to the piece coordinates
+            )  # set the objectName property to the piece coordinates
         else:
             button.setIcon(QIcon())
 
-    # Calls the getValidMoves function of the selected piece and returns an array of valid moves
+    # getter for the valid moves of a piece
     def getValidMoves(self, board, x, y):
         x = int(x)
         y = int(y)
@@ -183,7 +174,7 @@ class ChessBoard:
         # reset values
         self.highlightedSquares = []
 
-        # Iterate through the squares array and highlight the squares
+        # iterate through the squares array, highlights the squares
         for square in squares:
             if isinstance(square, tuple) and len(square) == 2:
                 if (
@@ -196,7 +187,7 @@ class ChessBoard:
                     self.highlightedSquares.append(button)
                     button.setStyleSheet("background-color: blue; border: None")
 
-                    # * Removing breaks code
+                    # connect to movePiece
                     button.clicked.connect(
                         lambda _,
                         piece=piece,
@@ -214,7 +205,7 @@ class ChessBoard:
             for y in range(8):
                 piece = self.board[x][y]
                 if piece is not None:
-                    # Add or subtract the value of the piece from the score
+                    # add or subtract the value of the piece from the score
                     if piece.colour == "white":
                         score += piece.weight
                     else:  # piece is black
@@ -223,7 +214,7 @@ class ChessBoard:
 
     def areYouInCheck(self, player_colour):
         king_position = None
-        # Find the king's position
+        # find the king's position
         for x in range(8):
             for y in range(8):
                 if (
@@ -232,13 +223,13 @@ class ChessBoard:
                 ):
                     king_position = (x, y)
 
-        # Check if any of the opponent's pieces can move to the king's position
+        # check if any of the opponent's pieces can move to the king's position
         for x in range(8):
             for y in range(8):
                 piece = self.board[x][y]
                 if piece is not None and piece.colour != player_colour:
                     if king_position in piece.getValidMoves(self.board, x, y):
-                        # The king is in check. Now check if there are no valid moves that would result in the king not being in check.
+                        # check if there are no valid moves that would result in the king not being in check
                         for dx in range(-1, 2):
                             for dy in range(-1, 2):
                                 new_x, new_y = (
@@ -246,7 +237,7 @@ class ChessBoard:
                                     king_position[1] + dy,
                                 )
                                 if 0 <= new_x < 8 and 0 <= new_y < 8:
-                                    # Temporarily move the king
+                                    # temporarily move the king
                                     temp = self.board[new_x][new_y]
                                     self.board[new_x][new_y] = self.board[
                                         king_position[0]
@@ -254,33 +245,33 @@ class ChessBoard:
                                     self.board[king_position[0]][king_position[1]] = (
                                         None
                                     )
-                                    # Check if the king is still in check
+                                    # check if the king is still in check
                                     if not self.areYouInCheck(player_colour):
-                                        # The king is not in check, so it's not checkmate
-                                        # Move the king back
+                                        # the king is not in check, so it's not checkmate
+                                        # move the king back
                                         self.board[king_position[0]][
                                             king_position[1]
                                         ] = self.board[new_x][new_y]
                                         self.board[new_x][new_y] = temp
-                                        return 1  # Return 1 for check
-                                    # Move the king back
+                                        return 1  # for check
+                                    # move the king back
                                     self.board[king_position[0]][king_position[1]] = (
                                         self.board[new_x][new_y]
                                     )
                                     self.board[new_x][new_y] = temp
-                        return 2  # Return 2 for checkmate
-        return 0  # Return 0 for no check
+                        return 2  # for checkmate
+        return 0  # for no check
 
     def movePiece(self, piece, current_x, current_y, new_x, new_y):
         if piece is not None:
             if piece.colour != self.playerTurn:
                 print("not your turn")
                 return
-            # Prevent the player from moving the pawn two squares twice
+            # prevent the player from moving the pawn two squares twice
             if piece.__class__.__name__ == "Pawn":
                 piece.firstMove = False
 
-            # Remove piece from previous pos & set new pos
+            # remove piece from previous position, set new posistion
             self.board[current_x][current_y] = None
             self.board[new_x][new_y] = piece
 
@@ -295,7 +286,7 @@ class ChessBoard:
                 logging.info(f"Pawn can promote on square, ({new_x}, {new_y}) ")
                 print(self.promotionWindow.show())
 
-            # Switch player turn
+            # switch player turn
             if self.playerTurn == "white":
                 self.playerTurn = "black"
             else:
@@ -327,11 +318,11 @@ class MainWindow(QWidget):
         QWidget.__init__(self)
         self.windowTitle = "Chess"
 
-        # Create layout
+        # set layout
         layout = QGridLayout()
         self.setLayout(layout)
 
-        # Create chess board
+        # create instance of the chess board
         board = ChessBoard()
         board.drawBoard(layout)
 
