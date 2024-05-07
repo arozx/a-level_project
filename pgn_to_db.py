@@ -26,7 +26,7 @@ database = parser.parse_args().database
 
 if os.name == "nt":  # check if windows
     database = os.getcwd() + f"\\{database}.db"
-else:  # UNIX style path (osx, linux, etc.)
+else:  # UNIX style path (osx, linux, etc)
     database = os.getcwd() + f"/{database}.db"
 
 # connect to the SQLite database (or create it if it doesn't exist)
@@ -91,7 +91,7 @@ def delete_game(c, game_id):
     # delete all moves associated with the game
     delete_moves(c, game_id)
 
-    # delete the game itself
+    # delete the game
     c.execute(
         """
         DELETE FROM games 
@@ -146,14 +146,14 @@ def add_game_to_db(game, file_id):
     time_control = headers.get("TimeControl", "Unknown")
     termination = headers.get("Termination", "Unknown")
 
-    # get moves of the game
+    # get moves for a givern game
     try:
         moves = " ".join(str(move) for move in game.mainline_moves())
     except ValueError:
         print("Illegal move encountered. Skipping game...")
         return None
 
-    # add the game to the list
+    # format data as a dictionary
     game_data = {
         "file_id": file_id,
         "white": white,
@@ -192,11 +192,13 @@ def process_game(file, game_number):
 def process_file(file):
     games_list = []
     max_workers = cpu_count()
+    # process games in parallel
     with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
         future_to_game = {
             executor.submit(process_game, file, game_number): game_number
             for game_number in range(100000)
         }
+        # use a progress bar to track the status of the processing
         with alive_bar(len(future_to_game), title="Processing") as bar:
             for future in concurrent.futures.as_completed(future_to_game):
                 game_data = future.result()
@@ -222,13 +224,14 @@ def process_files():
 
 if __name__ == "__main__":
     files = []
-    # load and find number of lines in the file
+    # returns the number of lines in the file
     file = "./lichess/lichess_db_standard_rated_2014-09.pgn"
     print("Counting games in the file...")
     games = count_games_in_pgn(file)
     print(f"number of games, {games:,}")
     num_games = games
 
+    # split the file into parts if it contains more than 100,000 games
     if games > 100_000:
         games = games // 100_000
         print("The file is too large to be processed splitting it into parts.")
@@ -239,7 +242,7 @@ if __name__ == "__main__":
                     f"lichess/lichess_db_standard_rated_2014-09.pgn_part{i+1}"
                 ) as f:
                     pass
-            except FileNotFoundError:
+            except FileNotFoundError:  # check if the file exists
                 split_file(file, games)
 
             files.append(f"{file}_part{i+1}")
