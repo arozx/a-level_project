@@ -5,12 +5,12 @@ import os
 import pstats
 import sqlite3
 from multiprocessing import cpu_count
-from time import sleep
 
 import chess.pgn
 import pandas as pd
 from alive_progress import alive_bar
 
+from db_connector import DBConnector
 from split_file import split_file
 
 parser = argparse.ArgumentParser()
@@ -32,88 +32,14 @@ else:  # UNIX style path (osx, linux, etc)
 # connect to the SQLite database (or create it if it doesn't exist)
 conn = sqlite3.connect(database)
 print("opening database at:", database)
-sleep(2)
 
 
-c = conn.cursor()
+# create a new DBConnector instance
+db = DBConnector(database)
 
-# create games table
-c.execute("""
-CREATE TABLE IF NOT EXISTS games (
-  id INTEGER PRIMARY KEY,
-  event TEXT,
-  site TEXT,
-  date TEXT,
-  round TEXT,
-  white TEXT,
-  black TEXT,
-  result TEXT,
-  utc_date TEXT,
-  utc_time TEXT,
-  white_elo INTEGER,
-  black_elo INTEGER,
-  white_rating_diff INTEGER,
-  black_rating_diff INTEGER,
-  white_title TEXT,
-  eco TEXT,
-  opening TEXT,
-  time_control TEXT,
-  termination TEXT,
-  moves TEXT
-)
-""")
-
-# create moves table
-c.execute("""
-CREATE TABLE IF NOT EXISTS moves (
-  id INTEGER PRIMARY KEY,
-  game_id INTEGER,
-  move_number INTEGER,
-  move TEXT,
-  evaluation REAL,
-  clock TEXT,
-  FOREIGN KEY(game_id) REFERENCES games(id)
-)
-""")
-
-
-def delete_moves(c, game_id):
-    c.execute(
-        """
-        DELETE FROM moves 
-        WHERE game_id = ?
-        """,
-        (game_id,),
-    )
-
-
-def delete_game(c, game_id):
-    # delete all moves associated with the game
-    delete_moves(c, game_id)
-
-    # delete the game
-    c.execute(
-        """
-        DELETE FROM games 
-        WHERE id = ?
-        """,
-        (game_id,),
-    )
-
-
-def output_tables(c, table):
-    if table == 0:
-        # output games table
-        c.execute("SELECT * FROM games")
-        print("Games:")
-        for row in c.fetchall():
-            print(row)
-    elif table == 1:
-        # output moves table
-        c.execute("SELECT * FROM moves")
-        print("\nMoves:")
-        for row in c.fetchall():
-            print(row)
+# create the tables
+db.create_games_table()
+db.create_moves_table()
 
 
 def count_games_in_pgn(file_path):
