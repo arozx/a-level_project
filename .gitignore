@@ -27,3 +27,6 @@ tb_logs/
 lichess/
 checkpoints/
 *.todo
+
+# pstats
+*.pstats
