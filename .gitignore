@@ -26,3 +26,4 @@ tb_logs/
 # data
 lichess/
 checkpoints/
+*.todo
