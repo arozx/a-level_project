@@ -6,181 +6,117 @@ class DBConnector:
         self.database = database
         self.conn = sqlite3.connect(database)
 
-    def connect(self):
-        """
-        Connects to the database.
-        """
+    def _connect(self):
         self.connection = sqlite3.connect(self.database)
         self.cursor = self.connection.cursor()
         self.connection.commit()
 
-    def disconnect(self):
-        """
-        Disconnects from the database.
-        """
+    def _disconnect(self):
         if self.connection:
             self.connection.close()
 
-    # * NEA methods
-
-    def display_all_tables(self):
-        """
-        Retrieves and returns all tables from the database.
-
-        Returns:
-            list: A list of tuples representing the tables.
-        """
-        query = "SELECT * FROM sqlite_master WHERE name='players' "
-
-        cursor = self.cursor.execute(query)
-        return cursor.fetchall()
-
-    def create_table(self, table_name, columns):
+    def create_games_table(self):
         c = self.conn.cursor()
-
-        # Create a string that defines the column names for the SQL command
-        cols = ", ".join(columns)
-
-        # Create the table
-        c.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({cols})")
-
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS games (
+            id INTEGER PRIMARY KEY,
+            event TEXT,
+            site TEXT,
+            date TEXT,
+            round TEXT,
+            white TEXT,
+            black TEXT,
+            result TEXT,
+            utc_date TEXT,
+            utc_time TEXT,
+            white_elo INTEGER,
+            black_elo INTEGER,
+            white_rating_diff INTEGER,
+            black_rating_diff INTEGER,
+            white_title TEXT,
+            eco TEXT,
+            opening TEXT,
+            time_control TEXT,
+            termination TEXT,
+            moves TEXT
+        )
+        """)
         self.conn.commit()
 
-    def display_previous_games(self):
-        """
-        Retrieves and returns all previous games from the database.
+    def create_moves_table(self):
+        c = self.conn.cursor()
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS moves (
+            id INTEGER PRIMARY KEY,
+            game_id INTEGER,
+            move_number INTEGER,
+            move TEXT,
+            evaluation REAL,
+            clock TEXT,
+            FOREIGN KEY(game_id) REFERENCES games(id)
+        )
+        """)
+        self.conn.commit()
 
-        Returns:
-            list: A list of tuples representing the previous games.
-        """
+    def insert_move(self, game_id, move_number, move, evaluation, clock):
+        query = f"INSERT INTO moves (game_id, move_number, move, evaluation, clock) VALUES ({game_id}, {move_number}, '{move}', {evaluation}, '{clock}')"
+        self.execute_query(query)
+
+    def fetch_moves(self, game_id):
+        query = f"SELECT * FROM moves WHERE game_id = {game_id}"
+        cursor = self.execute_query(query)
+        return cursor.fetchall()
+
+    def display_all_tables(self):
+        query = "SELECT name FROM sqlite_master WHERE type='table'"
+        cursor = self.execute_query(query)
+        return cursor.fetchall()
+
+    def display_previous_games(self):
         query = "SELECT * FROM games"
         cursor = self.execute_query(query)
         return cursor.fetchall()
 
     def fetch_move_history(self, game_id):
-        """
-        Retrieves and returns the move history for a specific game from the database.
-
-        Args:
-            game_id (int): The ID of the game.
-
-        Returns:
-            list: A list of tuples representing the move history.
-        """
         query = f"SELECT * FROM moves WHERE game_id = {game_id}"
         cursor = self.execute_query(query)
         return cursor.fetchall()
 
     def delete_game(self, game_id):
-        """
-        Deletes a game from the database.
-
-        Args:
-            game_id (int): The ID of the game.
-        """
-        query = f"DELETE FROM games WHERE game_id = {game_id}"
+        query = f"DELETE FROM games WHERE id = {game_id}"
         self.execute_query(query)
 
     def find_game_rating(self, game_id):
-        """
-        Retrieves and returns the rating of a specific game from the database.
-
-        Args:
-            game_id (int): The ID of the game.
-
-        Returns:
-            list: A list of tuples representing the game rating.
-        """
-        query = f"SELECT rating FROM games WHERE game_id = {game_id}"
+        query = f"SELECT white_elo, black_elo FROM games WHERE id = {game_id}"
         cursor = self.execute_query(query)
         return cursor.fetchall()
 
-    def find_player_rating(self, player_id):
-        """
-        Retrieves and returns the rating of a specific player from the database.
-
-        Args:
-            player_id (int): The ID of the player.
-
-        Returns:
-            list: A list of tuples representing the player rating.
-        """
-        query = f"SELECT rating FROM players WHERE player_id = {player_id}"
-        cursor = self.execute_query(query)
-        return cursor.fetchall()
-
-    def insert_game(self, game_id, player_1_id, player_2_id, winner_id, rating):
-        """
-        Inserts a new game into the database.
-
-        Args:
-            game_id (int): The ID of the game.
-            player_1_id (int): The ID of player 1.
-            player_2_id (int): The ID of player 2.
-            winner_id (int): The ID of the winner.
-            rating (int): The rating of the game.
-        """
-        query = f"INSERT INTO games (game_id, player_1_id, player_2_id, winner_id, rating) VALUES ({game_id}, {player_1_id}, {player_2_id}, {winner_id}, {rating})"
+    def insert_game(
+        self,
+        event,
+        site,
+        date,
+        round,
+        white,
+        black,
+        result,
+        utc_date,
+        utc_time,
+        white_elo,
+        black_elo,
+        white_rating_diff,
+        black_rating_diff,
+        white_title,
+        eco,
+        opening,
+        time_control,
+        termination,
+        moves,
+    ):
+        query = f"INSERT INTO games (event, site, date, round, white, black, result, utc_date, utc_time, white_elo, black_elo, white_rating_diff, black_rating_diff, white_title, eco, opening, time_control, termination, moves) VALUES ('{event}', '{site}', '{date}', '{round}', '{white}', '{black}', '{result}', '{utc_date}', '{utc_time}', {white_elo}, {black_elo}, {white_rating_diff}, {black_rating_diff}, '{white_title}', '{eco}', '{opening}', '{time_control}', '{termination}', '{moves}')"
         self.execute_query(query)
-
-    def count_games(self, player_1_id, player_2_id):
-        """
-        Counts the number of games between two players in the database.
-
-        Args:
-            player_1_id (int): The ID of player 1.
-            player_2_id (int): The ID of player 2.
-
-        Returns:
-            list: A list of tuples representing the count of games.
-        """
-        query = f"SELECT COUNT(*) FROM Games WHERE player_1_id = {player_2_id} OR player_2_id = {player_1_id}"
-        cursor = self.execute_query(query)
-        return cursor.fetchall()
-
-    def calc_winrate(self, player_1_id):
-        """
-        Calculates and returns the win rate of a specific player from the database.
-
-        Args:
-            player_1_id (int): The ID of the player.
-
-        Returns:
-            list: A list of tuples representing the win rate.
-        """
-        query = f"SELECT COUNT(*) FROM games WHERE winner_id = {player_1_id}"
-        cursor = self.execute_query(query)
-        return cursor.fetchall()
-
-    def longest_moves(self, player_id):
-        """
-        Retrieves and returns the maximum move number for a specific player from the database.
-
-        Args:
-            player_id (int): The ID of the player.
-
-        Returns:
-            list: A list of tuples representing the maximum move number.
-        """
-        query = f"SELECT MAX(move_number) FROM moves WHERE player_id = {player_id}"
-        cursor = self.execute_query(query)
-        return cursor.fetchall()
-
-    def insertGame(self, game_id, player_1_id, player_2_id, winner_id, rating):
-        query = f"INSERT INTO Games (game_id, player_1_id, player_2_id, winner_id, rating) VALUES ({game_id}, {player_1_id}, {player_2_id}, {winner_id}, {rating})"
-        self.cursor.execute(query)
-        return self.cursor.fetchall()
 
     def execute_query(self, query):
         cursor = self.conn.cursor()
         cursor.execute(query)
         self.conn.commit()
-
-
-if __name__ == "__main__":
-    db = DBConnector("chess.db")
-    db.connect()
-    # create games table
-    db.create_table("games", ["column1", "column2", "column3"])
-    db.insert_game(1, 1, 2, 1, 1)
-    print(db.display_all_tables())
