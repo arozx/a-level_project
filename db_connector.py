@@ -1,3 +1,4 @@
+import hashlib
 import sqlite3
 
 
@@ -14,6 +15,34 @@ class DBConnector:
     def _disconnect(self):
         if self.connection:
             self.connection.close()
+
+    def create_users_table(self):
+        c = self.conn.cursor()
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY,
+            username TEXT,
+            password_hash TEXT
+        )
+        """)
+        self.conn.commit()
+
+    def insert_user(self, username, password):
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        query = f"INSERT INTO users (username, password_hash) VALUES ('{username}', '{password_hash}')"
+        self.execute_query(query)
+
+    def verify_user(self, username, password):
+        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        query = f"SELECT * FROM users WHERE username = '{username}' AND password_hash = '{password_hash}'"
+        cursor = self.execute_query(query)
+        return cursor.fetchone() is not None
+
+    def execute_query(self, query):
+        cursor = self.conn.cursor()
+        cursor.execute(query)
+        self.conn.commit()
+        return cursor
 
     def create_games_table(self):
         c = self.conn.cursor()
@@ -115,8 +144,3 @@ class DBConnector:
     ):
         query = f"INSERT INTO games (event, site, date, round, white, black, result, utc_date, utc_time, white_elo, black_elo, white_rating_diff, black_rating_diff, white_title, eco, opening, time_control, termination, moves) VALUES ('{event}', '{site}', '{date}', '{round}', '{white}', '{black}', '{result}', '{utc_date}', '{utc_time}', {white_elo}, {black_elo}, {white_rating_diff}, {black_rating_diff}, '{white_title}', '{eco}', '{opening}', '{time_control}', '{termination}', '{moves}')"
         self.execute_query(query)
-
-    def execute_query(self, query):
-        cursor = self.conn.cursor()
-        cursor.execute(query)
-        self.conn.commit()
