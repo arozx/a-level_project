@@ -102,7 +102,7 @@ class ChessDataModule(pl.LightningDataModule):
         super().__init__()
         self.db_path = db_path
         self.batch_size = batch_size
-        # * number of CPU cores abaialiable
+        # * number of CPU cores available
         self.num_workers = multiprocessing.cpu_count() - 1
 
     def setup(self, stage=None):
