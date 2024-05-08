@@ -1,3 +1,5 @@
+from multiprocessing import Pool, cpu_count
+
 import chess
 import numpy as np
 
@@ -9,44 +11,43 @@ class MCTS:
         self.root = None
 
     def __call__(self, human_move):
-        if self.root is None:
-            self.root = Node(chess.Board(), None)
-
-        # Update the root node with the human move
-        if human_move is not None:
-            self.root = self._get_child_node(self.root, human_move)
-
         # Run MCTS iterations
-        for _ in range(iterations):
-            node = self.root
-            board = chess.Board(node.board)
+        max_workers = cpu_count()
+        with Pool(processes=max_workers) as pool:  # use all available CPUs
+            results = pool.map(self.run_iteration, range(iterations))
 
-            # Selection
-            while node.children:
-                node = node.select_child()
-                board.push(node.move)
+    def run_iteration(self, _):
+        node = self.root
+        board = chess.Board(node.board)
 
-            # Expansion
+        # Selection
+        while node.children:
+            node = node.select_child()
+            board.push(node.move)
+
+        # Expansion
+        if board.turn == self.ai_color:
+            for move in board.legal_moves:
+                new_board = board.copy()
+                new_board.push(move)
+                node.add_child(new_board.fen())
+
+        # Simulation
+        while not board.is_game_over():
             if board.turn == self.ai_color:
-                for move in board.legal_moves:
-                    new_board = board.copy()
-                    new_board.push(move)
-                    node.add_child(new_board.fen())
+                move = np.random.choice(list(board.legal_moves))
+            else:
+                # If it's the human's turn, wait for their move
+                move = get_human_move()  # You need to implement this function
+            board.push(move)
 
-            # Simulation
-            while not board.is_game_over():
-                if board.turn == self.ai_color:
-                    move = np.random.choice(list(board.legal_moves))
-                else:
-                    # If it's the human's turn, wait for their move
-                    move = get_human_move()  # You need to implement this function
-                board.push(move)
+        # Backpropagation
+        result = self.model.evaluate(board)
+        while node is not None:
+            node.update(result)
+            node = node.parent
 
-            # Backpropagation
-            result = self.model.evaluate(board)
-            while node is not None:
-                node.update(result)
-                node = node.parent
+        return node
 
         # Get the best move from the root node
         best_move = sorted(self.root.children, key=lambda c: c.visits)[-1].move
