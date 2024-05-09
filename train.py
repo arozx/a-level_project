@@ -252,6 +252,9 @@ def main():
         logger=logger,
         callbacks=[early_stop_callback],
         log_every_n_steps=10,
+        accelerator="auto",
+        devices="auto",
+        strategy="auto",
     )
 
     # Train the model
