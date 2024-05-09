@@ -5,16 +5,16 @@ import sqlite3
 class DBConnector:
     def __init__(self, database):
         self.database = database
-        self.conn = sqlite3.connect(database)
+        self._connect()
 
     def _connect(self):
-        self.connection = sqlite3.connect(self.database)
-        self.cursor = self.connection.cursor()
-        self.connection.commit()
+        self.conn = sqlite3.connect(self.database)
+        self.cursor = self.conn.cursor()
+        self.conn.commit()
 
     def _disconnect(self):
-        if self.connection:
-            self.connection.close()
+        if self.conn:
+            self.conn.close()
 
     def create_users_table(self):
         c = self.conn.cursor()
@@ -23,8 +23,7 @@ class DBConnector:
             id INTEGER PRIMARY KEY,
             username TEXT,
             password_hash TEXT
-        )
-        """)
+        )""")
         self.conn.commit()
 
     def insert_user(self, username, password):
