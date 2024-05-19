@@ -1,14 +1,14 @@
 import logging
 
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication, QGridLayout, QPushButton, QWidget
+from PyQt5.QtWidgets import QApplication, QGridLayout, QPushButton, QWidget, QLabel
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 from promotion_window import PromotionWindow
 
 
 class ChessBoard:
-    def __init__(self):
+    def __init__(self, layout):
         self.moveCount = 0
         self.playerTurn = "white"
 
@@ -129,6 +129,9 @@ class ChessBoard:
                 button = self.drawSquare(x, y)
                 layout.addWidget(button, x, y)
 
+        self._scoreLabel = QLabel("Score: 0")
+        layout.addWidget(self._scoreLabel, 8, 0, 1, 8)
+
         # check if there is a piece on the square and call drawPiece
         for x in range(8):
             for y in range(8):
@@ -212,6 +215,13 @@ class ChessBoard:
                     else:  # piece is black
                         score -= piece.weight
         return score
+
+    def _updateScore(self):
+        # Calculate the material score
+        score = self.calculateMaterialScore()
+
+        # Update the score label text
+        self._scoreLabel.setText(f"Score: {score}")
 
     def areYouInCheck(self, player_colour):
         king_position = None
@@ -298,6 +308,7 @@ class ChessBoard:
         check = self.areYouInCheck(self.playerTurn)
         logging.info(f"Check status: {check}")
 
+        self._updateScore()
         self.regenerateBoard() # regenerate the whole board
 
     def regenerateBoard(self):
@@ -324,7 +335,7 @@ class MainWindow(QWidget):
         self.setLayout(layout)
 
         # create instance of the chess board
-        board = ChessBoard()
+        board = ChessBoard(layout)
         board.drawBoard(layout)
 
 
