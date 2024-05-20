@@ -1,14 +1,14 @@
 import logging
 
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication, QGridLayout, QPushButton, QWidget
+from PyQt5.QtWidgets import QApplication, QGridLayout, QPushButton, QWidget, QLabel
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 from promotion_window import PromotionWindow
 
 
 class ChessBoard:
-    def __init__(self):
+    def __init__(self, layout):
         self.moveCount = 0
         self.playerTurn = "white"
 
@@ -20,6 +20,7 @@ class ChessBoard:
         # setup promotion window to be called as needed
         self.promotionWindow = PromotionWindow()
         self.promotionWindow.pieceSelected.connect(self.handlePieceSelected)
+        self.promotionWindow.close()
 
         # Create white pieces
         self.board[0][0] = Rook("white")
@@ -128,6 +129,9 @@ class ChessBoard:
                 button = self.drawSquare(x, y)
                 layout.addWidget(button, x, y)
 
+        self._scoreLabel = QLabel("Score: 0")
+        layout.addWidget(self._scoreLabel, 8, 0, 1, 8)
+
         # check if there is a piece on the square and call drawPiece
         for x in range(8):
             for y in range(8):
@@ -212,6 +216,13 @@ class ChessBoard:
                         score -= piece.weight
         return score
 
+    def _updateScore(self):
+        # Calculate the material score
+        score = self.calculateMaterialScore()
+
+        # Update the score label text
+        self._scoreLabel.setText(f"Score: {score}")
+
     def areYouInCheck(self, player_colour):
         king_position = None
         # find the king's position
@@ -275,9 +286,6 @@ class ChessBoard:
             self.board[current_x][current_y] = None
             self.board[new_x][new_y] = piece
 
-            self.drawPiece(self.buttons[f"{new_x},{new_y}"], piece)
-            self.drawPiece(self.buttons[f"{current_x},{current_y}"], None)
-
             # checks if the pawn is moving to a promotion square
             if isinstance(piece, Pawn) and (
                 (piece.colour == "white" and new_y == 7)
@@ -300,16 +308,20 @@ class ChessBoard:
         check = self.areYouInCheck(self.playerTurn)
         logging.info(f"Check status: {check}")
 
-        # * deselect the currently selected button
-        self.buttons[f"{current_x},{current_y}"].setStyleSheet(
-            "background-color: orange; border: None"
-        )
-        try:
-            self.selectedButton.setStyleSheet(
-                "background-color: purple; border: None"
-            )  # original square
-        except AttributeError:
-            logging.error("No button selected")
+        self._updateScore()
+        self.regenerateBoard() # regenerate the whole board
+
+    def regenerateBoard(self):
+        layout = self.buttons["0,0"].parentWidget().layout()
+        # Clear the layout
+        for i in reversed(range(layout.count())):
+            widget = layout.itemAt(i).widget()
+            if widget is not None:
+                widget.setParent(None)
+
+        self.buttons = {}
+        self.drawBoard(layout)
+
 
 
 # UI
@@ -323,7 +335,7 @@ class MainWindow(QWidget):
         self.setLayout(layout)
 
         # create instance of the chess board
-        board = ChessBoard()
+        board = ChessBoard(layout)
         board.drawBoard(layout)
 
 
