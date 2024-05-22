@@ -31,7 +31,7 @@ class ChessBoard:
         self.board[0][5] = Bishop("white")
         self.board[0][6] = Knight("white")
         self.board[0][7] = Rook("white")
-        for i in range(1, 8):
+        for i in range(8):
             self.board[1][i] = Pawn("white")
 
         # Create black pieces
