@@ -26,8 +26,8 @@ class ChessBoard:
         self.board[0][0] = Rook("white")
         self.board[0][1] = Knight("white")
         self.board[0][2] = Bishop("white")
-        self.board[0][3] = Queen("white")
-        self.board[0][4] = King("white")
+        self.board[0][4] = Queen("white")
+        self.board[0][3] = King("white")
         self.board[0][5] = Bishop("white")
         self.board[0][6] = Knight("white")
         self.board[0][7] = Rook("white")
@@ -38,8 +38,8 @@ class ChessBoard:
         self.board[7][0] = Rook("black")
         self.board[7][1] = Knight("black")
         self.board[7][2] = Bishop("black")
-        self.board[7][3] = Queen("black")
-        self.board[7][4] = King("black")
+        self.board[7][4] = Queen("black")
+        self.board[7][3] = King("black")
         self.board[7][5] = Bishop("black")
         self.board[7][6] = Knight("black")
         self.board[7][7] = Rook("black")
@@ -103,7 +103,7 @@ class ChessBoard:
                 button.setStyleSheet("background-color: green; border: None")
 
         #! For development purposes / Debugging
-        button.setText(f"{x},{y}")
+        # button.setText(f"{x},{y}")
 
         # set the objectName property to the coordinates of the square
         self.buttons[f"{x},{y}"] = button
