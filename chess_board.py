@@ -1,7 +1,7 @@
 import logging
 
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication, QGridLayout, QPushButton, QWidget, QLabel
+from PyQt5.QtWidgets import QApplication, QGridLayout, QLabel, QPushButton, QWidget
 
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 from promotion_window import PromotionWindow
@@ -72,6 +72,8 @@ class ChessBoard:
                 )
                 valid_moves = self.getValidMoves(self.board, x, y)
                 try:
+                    # prepend the current square to the valid moves
+                    valid_moves.insert(0, (x, y))
                     print(f"cur x = {valid_moves[0][0]} cur y = {valid_moves[0][1]}")
                 except IndexError:
                     print("No valid moves")
@@ -144,9 +146,7 @@ class ChessBoard:
             icon = QIcon(f"media/{piece.colour}/{piece.__class__.__name__}.svg")
             button.setIcon(icon)
             button.setIconSize(button.size())
-            button.setObjectName(
-                f"{piece.x},{piece.y}"
-            )  # set the objectName property to the piece coordinates
+            button.setObjectName(f"{piece.x},{piece.y}")
         else:
             button.setIcon(QIcon())
 
@@ -276,40 +276,45 @@ class ChessBoard:
     def movePiece(self, piece, current_x, current_y, new_x, new_y):
         if piece is not None:
             if piece.colour != self.playerTurn:
-                print("not your turn")
+                print("Not your turn")
                 return
-            # prevent the player from moving the pawn two squares twice
-            if piece.__class__.__name__ == "Pawn":
-                piece.firstMove = False
 
-            # remove piece from previous position, set new posistion
+            logging.info(
+                f"Moving {piece} from ({current_x}, {current_y}) to ({new_x}, {new_y})"
+            )
+
+            # Move the piece on the board
             self.board[current_x][current_y] = None
             self.board[new_x][new_y] = piece
 
-            # checks if the pawn is moving to a promotion square
+            # Update the piece's coordinates
+            piece.x = new_x
+            piece.y = new_y
+
+            # Check if the pawn is moving to a promotion square
             if isinstance(piece, Pawn) and (
-                (piece.colour == "white" and new_y == 7)
-                or (piece.colour == "black" and new_y == 0)
+                (piece.colour == "white" and new_x == 7)
+                or (piece.colour == "black" and new_x == 0)
             ):
                 logging.info(f"Pawn can promote on square, ({new_x}, {new_y}) ")
-                print(self.promotionWindow.show())
+                self.promotionWindow.show()
 
-            # switch player turn
-            if self.playerTurn == "white":
-                self.playerTurn = "black"
-            else:
-                self.playerTurn = "white"
+            # Switch player turn
+            self.playerTurn = "black" if self.playerTurn == "white" else "white"
+
+            # Update the UI
+            self.regenerateBoard()
 
         else:
             logging.warn("Piece is None")
             self.highlightSquares(None, [])
 
-        # * find if in check
-        check = self.areYouInCheck(self.playerTurn)
-        logging.info(f"Check status: {check}")
+        # Check if the player is in check
+        # check = self.areYouInCheck(self.playerTurn)
+        # logging.info(f"Check status: {check}")
 
+        # Update the score
         self._updateScore()
-        self.regenerateBoard() # regenerate the whole board
 
     def regenerateBoard(self):
         layout = self.buttons["0,0"].parentWidget().layout()
@@ -321,7 +326,6 @@ class ChessBoard:
 
         self.buttons = {}
         self.drawBoard(layout)
-
 
 
 # UI
