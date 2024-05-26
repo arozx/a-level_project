@@ -77,16 +77,20 @@ class ChessBoard:
                 except IndexError:
                     print("No valid moves")
                 self.highlightSquares(piece, valid_moves)
-
             else:
+                self.clearHighlightedSquares()
                 current_x, current_y = self.find_piece_coordinates(piece)
                 print(f"{current_x} : current x\n {current_y} : current y")
-
-                # pass new_x and new_y to highlightSquares
-                # check that the squares are defined
-                if current_x is not None and current_y is not None:
-                    self.drawSquare(current_x, current_y)
-                    self.selectedButton = None  # deselect the currently selected button
+                if self.selectedButton == self.buttons[square]:
+                    self.selectedButton.setStyleSheet("")
+                    self.selectedButton = None
+                else:
+                    if current_x is not None and current_y is not None:
+                        self.drawSquare(current_x, current_y)
+                    self.selectedButton = self.buttons[square]
+                    self.selectedButton.setStyleSheet(
+                        "background-color: yellow; border: None"
+                    )
 
     # draw the board
     def drawSquare(self, x, y):
@@ -130,7 +134,7 @@ class ChessBoard:
                 button = self.drawSquare(x, y)
                 layout.addWidget(button, x, y)
 
-        self._scoreLabel = QLabel("Score: 0")
+        self._scoreLabel = QLabel("White Score: 0")
         layout.addWidget(self._scoreLabel, 8, 0, 1, 8)
 
         # check if there is a piece on the square and call drawPiece
@@ -180,12 +184,7 @@ class ChessBoard:
         # iterate through the squares array, highlights the squares
         for square in squares:
             if isinstance(square, tuple) and len(square) == 2:
-                if (
-                    square[0] >= 0
-                    and square[0] <= 7
-                    and square[1] >= 0
-                    and square[1] <= 7
-                ):
+                if 0 <= square[0] < 8 and 0 <= square[1] < 8:
                     button = self.buttons[f"{square[0]},{square[1]}"]
                     self.highlightedSquares.append(button)
                     button.setStyleSheet("background-color: blue; border: None")
@@ -201,6 +200,110 @@ class ChessBoard:
                             piece, current_x, current_y, new_x, new_y
                         )
                     )
+
+    def clearHighlightedSquares(self):
+        for button in self.highlightedSquares:
+            if button.property("class") == "white":
+                button.setStyleSheet("background-color: white; border: None")
+            elif button.property("class") == "black":
+                button.setStyleSheet("background-color: green; border: None")
+        self.highlightedSquares = []
+
+    def movePiece(self, piece, old_x, old_y, new_x, new_y):
+        print(
+            f"movePiece; old_x: {old_x}, old_y: {old_y}, new_x: {new_x}, new_y: {new_y}"
+        )
+        print(f"self.playerTurn: {self.playerTurn} piece: {piece}")
+
+        if self.selectedButton:
+            self.selectedButton.setStyleSheet("")
+            self.selectedButton = None
+        else:
+            print("No button was selected")
+
+        self.clearHighlightedSquares()
+
+        if self.board[old_x][old_y] is not None:
+            if (
+                self.board[new_x][new_y] is None
+                or self.board[new_x][new_y].colour != self.board[old_x][old_y].colour
+            ):
+                # Clear old locations of all pieces
+                for x in range(8):
+                    for y in range(8):
+                        if self.board[x][y] is not None:
+                            self.buttons[f"{x},{y}"].setIcon(QIcon())  # Reset icon
+
+                # Capture the opponent's piece if the destination square is occupied
+                captured_piece = self.board[new_x][new_y]
+
+                # Move the piece to the new location
+                self.board[new_x][new_y] = self.board[old_x][old_y]
+                self.board[old_x][old_y] = None
+
+                # set first_move false if exists
+                if isinstance(self.board[new_x][new_y], Pawn):
+                    self.board[new_x][new_y].first_move = False
+
+                # Set the icon for the piece at its new location
+                new_piece = self.board[new_x][new_y]
+                if new_piece is not None:
+                    icon = QIcon(
+                        f"media/{new_piece.colour}/{new_piece.__class__.__name__}.svg"
+                    )
+                    self.buttons[f"{new_x},{new_y}"].setIcon(icon)
+
+                # Update player turn
+                self.playerTurn = "black" if self.playerTurn == "white" else "white"
+
+                # Handle pawn promotion
+                if isinstance(new_piece, Pawn) and (new_x == 0 or new_x == 7):
+                    print(
+                        f"Promotion: {new_piece.colour} {new_piece.__class__.__name__}"
+                    )
+                    self.promotePawn(new_x, new_y, new_piece.colour)
+
+                # Regenerate the board
+                self.regenerateBoard()
+
+                # Print a message indicating that a capture occurred
+                if captured_piece:
+                    print(
+                        f"Captured {captured_piece.colour} {captured_piece.__class__.__name__}"
+                    )
+
+            else:
+                print("Invalid move: Destination occupied by your own piece")
+        else:
+            print("Invalid move: No piece at the selected position")
+
+    def regenerateBoard(self):
+        layout = self.buttons["0,0"].parentWidget().layout()
+        # Clear the layout
+        for i in reversed(range(layout.count())):
+            widget = layout.itemAt(i).widget()
+            if widget is not None:
+                widget.setParent(None)
+
+        self.buttons = {}
+
+        # Draw the board
+        for x in range(8):
+            for y in range(8):
+                button = self.drawSquare(x, y)
+                layout.addWidget(button, x, y)
+
+        self._scoreLabel = QLabel("White Score: 0")
+        layout.addWidget(self._scoreLabel, 8, 0, 1, 8)
+
+        # Redraw all pieces on the board
+        for x in range(8):
+            for y in range(8):
+                if self.board[x][y] is not None:
+                    self.drawPiece(self.buttons[f"{x},{y}"], self.board[x][y])
+
+        # Ensure last move is cleared
+        self.lastMove = None
 
     def calculateMaterialScore(self):
         score = 0
@@ -271,60 +374,6 @@ class ChessBoard:
                                     self.board[new_x][new_y] = temp
                         return 2  # for checkmate
         return 0  # for no check
-
-    def movePiece(self, piece, current_x, current_y, new_x, new_y):
-        if piece is not None:
-            if piece.colour != self.playerTurn:
-                print("Not your turn")
-                return
-
-            logging.info(
-                f"Moving {piece} from ({current_x}, {current_y}) to ({new_x}, {new_y})"
-            )
-
-            # Move the piece on the board
-            self.board[current_x][current_y] = None
-            self.board[new_x][new_y] = piece
-
-            # Update the piece's coordinates
-            piece.x = new_x
-            piece.y = new_y
-
-            # Check if the pawn is moving to a promotion square
-            if isinstance(piece, Pawn) and (
-                (piece.colour == "white" and new_x == 7)
-                or (piece.colour == "black" and new_x == 0)
-            ):
-                logging.info(f"Pawn can promote on square, ({new_x}, {new_y}) ")
-                self.promotionWindow.show()
-
-            # Switch player turn
-            self.playerTurn = "black" if self.playerTurn == "white" else "white"
-
-            # Update the UI
-            self.regenerateBoard()
-
-        else:
-            logging.warn("Piece is None")
-            self.highlightSquares(None, [])
-
-        # Check if the player is in check
-        # check = self.areYouInCheck(self.playerTurn)
-        # logging.info(f"Check status: {check}")
-
-        # Update the score
-        self._updateScore()
-
-    def regenerateBoard(self):
-        layout = self.buttons["0,0"].parentWidget().layout()
-        # Clear the layout
-        for i in reversed(range(layout.count())):
-            widget = layout.itemAt(i).widget()
-            if widget is not None:
-                widget.setParent(None)
-
-        self.buttons = {}
-        self.drawBoard(layout)
 
 
 # UI
