@@ -72,7 +72,6 @@ class ChessBoard:
                 )
                 valid_moves = self.getValidMoves(self.board, x, y)
                 try:
-                    # prepend the current square to the valid moves
                     valid_moves.insert(0, (x, y))
                     print(f"cur x = {valid_moves[0][0]} cur y = {valid_moves[0][1]}")
                 except IndexError:
