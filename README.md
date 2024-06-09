@@ -16,8 +16,6 @@
   </p>
 </div>
 
-
-
 <details>
   <summary>Table of Contents</summary>
   <ol>
@@ -50,17 +48,12 @@ A full stack chess app using PyQt5 for the frontend and a engine writen using py
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
 <!-- GETTING STARTED -->
 ## Getting Started
 
-
-
 ### Prerequisites
 
-
 Python versions 3.9 - 3.12 are supported. You can download the latest version of python from [here](https://www.python.org/downloads/)
-
 
 
 ### Installation
@@ -77,6 +70,26 @@ Install the required packages by running
 pip install -r requirements.txt
 ```
 
+Download a lichess shard you can use any but I recomend the 2014-09 shard as it is roughly 1,000,000 games and about 0.2GB in size. You can download the shard by running
+
+```sh
+mkdir lichess
+cd lichess
+wget https://database.lichess.org/standard/lichess_db_standard_rated_2014-09.pgn.zst
+```
+
+Next you will need to extract the shard by running
+
+```sh
+zstd -d lichess_db_standard_rated_2014-09.pgn.zst
+```
+
+Finally you will need to run a script to convert the pgn to a database file. You can do this by running
+
+```sh
+python3 pgn_to_db.py
+```
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- USAGE -->
@@ -84,7 +97,7 @@ pip install -r requirements.txt
 
 To run the program use the following comand
 
-```python
+```sh
 python chess_board.py
 ```
 
@@ -102,15 +115,12 @@ Then run the tests by running
 pytest
 ```
 
-
 <!-- LICENSE -->
 ## License
 
 ### Images
 
 Images used in this project are from [Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:SVG_chess_pieces). The images are under the Creative Commons license. Please see the individual image pages for more information on the copyright holder and the specific license conditions.
-
-
 
 <!-- CONTACT -->
 ## Contact
