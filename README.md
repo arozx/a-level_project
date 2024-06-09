@@ -84,6 +84,8 @@ Next you will need to extract the shard by running
 zstd -d lichess_db_standard_rated_2014-09.pgn.zst
 ```
 
+Note, if you are using a different shard you will need to change the file name in the above commands. And you will need to change the file name in the pgn_to_db.py file **line 154**.
+
 Finally you will need to run a script to convert the pgn to a database file. You can do this by running
 
 ```sh
