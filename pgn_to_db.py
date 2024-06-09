@@ -164,9 +164,7 @@ if __name__ == "__main__":
         split_file(file, games)
         for i in range(games):
             try:
-                with open(
-                    f"lichess/lichess_db_standard_rated_2014-09.pgn_part{i+1}"
-                ) as f:
+                with open(f"{file}{i+1}") as f:
                     pass
             except FileNotFoundError:  # check if the file exists
                 split_file(file, games)
