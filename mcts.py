@@ -38,7 +38,7 @@ class MCTS:
                 move = np.random.choice(list(board.legal_moves))
             else:
                 # If it's the human's turn, wait for their move
-                move = get_human_move()  # You need to implement this function
+                move = get_human_move() # Work in progress... (get the move from the chessboard qt class)
             board.push(move)
 
         # Backpropagation
