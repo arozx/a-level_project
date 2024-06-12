@@ -1,3 +1,5 @@
+# mcts.py
+
 import math
 from multiprocessing import Pool, cpu_count
 
@@ -17,27 +19,19 @@ class Node:
     def is_leaf(self):
         return len(self.children) == 0
 
-    def expand(self):
-        board = chess.Board(self.board_fen)  # Initialize board with FEN
-        print(f"Expanding node with board FEN: {self.board_fen}")  # Debug print
-        for move in board.legal_moves:
-            board.push(move)
-            child_fen = board.fen()  # Get FEN of the new board state
-            self.children.append(Node(child_fen, move, self))
-            print(
-                f"Generated child move: {move.uci()} with FEN: {child_fen}"
-            )  # Debug print
-            board.pop()
-        print(
-            f"Number of children after expansion: {len(self.children)}"
-        )  # Debug print
+    def expand(self, all_valid_moves):
+        for move_uci in all_valid_moves:
+            move = chess.Move.from_uci(move_uci)
+            new_board = chess.Board(self.board_fen)
+            new_board.push(move)
+            child = Node(new_board.fen(), move, self)
+            self.children.append(child)
 
     def update(self, value):
         self.visits += 1
         self.value += value
 
     def best_child(self, exploration_weight):
-        # Use a large negative number as the default value
         best_value = float("-inf")
         best_child = None
 
@@ -57,30 +51,32 @@ class Node:
 
 
 class MCTS:
-    def __init__(self, model, ai_color, iterations):
+    def __init__(self, model, ai_color, iterations, all_valid_moves):
         self.model = model
         self.ai_color = ai_color
         self.root = None
         self.iterations = iterations
+        self.all_valid_moves = all_valid_moves
 
     def __call__(self, human_move):
         max_workers = cpu_count()
         with Pool(processes=max_workers) as pool:
             pool.map(self.run_iteration, range(self.iterations))
 
-        if not self.root.children:
-            print("No children were created during MCTS.")  # Debug print
+        if not self.root.children:  # no legal moves
             return None
 
         best_move_node = sorted(self.root.children, key=lambda c: c.visits)[-1]
         best_move = best_move_node.move
         return best_move
 
-    def get_best_move(self, game):
-        self.root = Node(game.get_board_state())
+    def get_best_move(self, game, all_valid_moves):
+        self.root = Node(
+            game.get_board_state()
+        )  # returns the FEN string of the current board state
 
-        # Expand root node to initialize children
-        self.root.expand()
+        print("self.all_valid_moves: ", all_valid_moves)  # Debug print
+        self.root.expand(all_valid_moves)  # Expand root node with valid moves
         print(
             f"Root node has {len(self.root.children)} children after expansion."
         )  # Debug print
@@ -102,7 +98,7 @@ class MCTS:
 
         board = chess.Board(node.board_fen)  # Initialize board with FEN
         if not board.is_game_over():
-            node.expand()
+            node.expand(self.all_valid_moves)
 
         reward = self.simulate(board)
         while node is not None:

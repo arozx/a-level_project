@@ -13,6 +13,8 @@ class ChessBoard:
         self.moveCount = 0
         self.playerTurn = "white"
 
+        self.all_legal_moves = []
+
         self.board = [[None for x in range(8)] for y in range(8)]
         self.buttons = {}
         self.selectedButton = None
@@ -23,9 +25,13 @@ class ChessBoard:
         self.promotionWindow.pieceSelected.connect(self.handlePieceSelected)
         self.promotionWindow.close()
 
+        # Create an instance of the MCTS class, passing all valid moves
         self.mcts = MCTS(
-            model=None, ai_color="black", iterations=1000
-        )  # Create an instance of the MCTS class
+            model=None,
+            ai_color="black",
+            iterations=50,
+            all_valid_moves=self.get_all_valid_moves(),
+        )
 
         # Create white pieces
         self.board[0][0] = Rook("white")
@@ -70,8 +76,33 @@ class ChessBoard:
             fen += "/"
         return fen[:-1]
 
+    def promotePawn(self, x, y, colour):
+        print(f"Promoting pawn at ({x}, {y})")
+
     def game_over(self):
         return self.areYouInCheck("white") == 2 or self.areYouInCheck("black") == 2
+
+    def get_all_valid_moves(self):
+        moves = []
+        for x in range(8):
+            for y in range(8):
+                piece = self.board[x][y]
+                if piece is not None and piece.colour == "black":
+                    valid_moves = piece.getValidMoves(self.board, x, y)
+                    for move in valid_moves:
+                        moves.append(((x, y), move))
+
+        # convert from tuple to UCI format
+        moves = [
+            f"{chr(97 + start[1])}{8 - start[0]}{chr(97 + end[1])}{8 - end[0]}"
+            for start, end in moves
+        ]
+        # remove all moves where the start and end squares are the same
+        moves = [move for move in moves if move[0] != move[2] or move[1] != move[3]]
+        self.all_legal_moves = moves
+        print("chessboard all valid moves: ", moves)
+
+        return moves
 
     def uci_to_coords(self, uci):
         # Convert UCI move (e.g., 'e2e4') to coordinates (e.g., (6, 4, 4, 4))
@@ -87,15 +118,18 @@ class ChessBoard:
     def game_loop(self):
         print("Game loop called")
         if self.playerTurn == "black":
-            move_uci = self.mcts.get_best_move(self)
-            if move_uci:
+            move_uci = self.mcts.get_best_move(
+                self, all_valid_moves=self.get_all_valid_moves()
+            )
+            if move_uci:  # when b7b8n
                 print(f"Best move found by MCTS: {move_uci}")  # Debug print
-                move_coords = self.uci_to_coords(move_uci)
-                print(f"Move coordinates: {move_coords}")
-                self.execute_move(move_coords)
-                self.playerTurn = "white"
+                move = self.uci_to_coords(move_uci)
+                print(f"Converted move: {move}")
+                self.execute_move(move)
             else:
-                print("No valid move found by MCTS.")  # Debug print
+                exit(1)
+            self.playerTurn = "white"
+            self.moveCount += 1
 
     # Ensure the execute_move method expects move in the format (old_x, old_y, new_x, new_y)
     def execute_move(self, move):
@@ -162,7 +196,7 @@ class ChessBoard:
                 button.setStyleSheet("background-color: green; border: None")
 
         #! For development purposes / Debugging
-        # button.setText(f"{x},{y}")
+        button.setText(f"{x},{y}")
 
         # set the objectName property to the coordinates of the square
         self.buttons[f"{x},{y}"] = button
@@ -266,6 +300,8 @@ class ChessBoard:
         self.highlightedSquares = []
 
     def movePiece(self, piece, old_x, old_y, new_x, new_y):
+        print(f"board state: {self.get_board_state()}")
+
         print(
             f"movePiece; old_x: {old_x}, old_y: {old_y}, new_x: {new_x}, new_y: {new_y}"
         )
