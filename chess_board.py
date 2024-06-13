@@ -451,38 +451,41 @@ class ChessBoard:
             for y in range(8):
                 piece = self.board[x][y]
                 if piece is not None and piece.colour != player_colour:
-                    if king_position in piece.getValidMoves(self.board, x, y):
-                        # check if there are no valid moves that would result in the king not being in check
-                        for dx in range(-1, 2):
-                            for dy in range(-1, 2):
-                                new_x, new_y = (
-                                    king_position[0] + dx,
-                                    king_position[1] + dy,
-                                )
-                                if 0 <= new_x < 8 and 0 <= new_y < 8:
-                                    # temporarily move the king
-                                    temp = self.board[new_x][new_y]
-                                    self.board[new_x][new_y] = self.board[
-                                        king_position[0]
-                                    ][king_position[1]]
-                                    self.board[king_position[0]][king_position[1]] = (
-                                        None
+                    try:
+                        if king_position in piece.getValidMoves(self.board, x, y):
+                            # check if there are no valid moves that would result in the king not being in check
+                            for dx in range(-1, 2):
+                                for dy in range(-1, 2):
+                                    new_x, new_y = (
+                                        king_position[0] + dx,
+                                        king_position[1] + dy,
                                     )
-                                    # check if the king is still in check
-                                    if not self.areYouInCheck(player_colour):
-                                        # the king is not in check, so it's not checkmate
+                                    if 0 <= new_x < 8 and 0 <= new_y < 8:
+                                        # temporarily move the king
+                                        temp = self.board[new_x][new_y]
+                                        self.board[new_x][new_y] = self.board[
+                                            king_position[0]
+                                        ][king_position[1]]
+                                        self.board[king_position[0]][
+                                            king_position[1]
+                                        ] = None
+                                        # check if the king is still in check
+                                        if not self.areYouInCheck(player_colour):
+                                            # the king is not in check, so it's not checkmate
+                                            # move the king back
+                                            self.board[king_position[0]][
+                                                king_position[1]
+                                            ] = self.board[new_x][new_y]
+                                            self.board[new_x][new_y] = temp
+                                            return 1  # for check
                                         # move the king back
                                         self.board[king_position[0]][
                                             king_position[1]
                                         ] = self.board[new_x][new_y]
                                         self.board[new_x][new_y] = temp
-                                        return 1  # for check
-                                    # move the king back
-                                    self.board[king_position[0]][king_position[1]] = (
-                                        self.board[new_x][new_y]
-                                    )
-                                    self.board[new_x][new_y] = temp
                         return 2  # for checkmate
+                    except ValueError:  # catch ValueError: Outside of board
+                        print("ValueError: Outside of board")
         return 0  # for no check
 
 
