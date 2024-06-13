@@ -4,7 +4,6 @@ import math
 from multiprocessing import Pool, cpu_count
 
 import chess
-import numpy as np
 
 
 class Node:
@@ -100,19 +99,37 @@ class MCTS:
         if not board.is_game_over():
             node.expand(self.all_valid_moves)
 
-        reward = self.simulate(board)
+        reward = self.negamax(board, depth=3, color=1)
         while node is not None:
             node.update(reward)
             node = node.parent
 
-    def simulate(self, board):
-        while not board.is_game_over():
-            move = np.random.choice(list(board.legal_moves))
+    def negamax(self, board, depth, color):
+        if depth == 0 or board.is_game_over():
+            return color * self.evaluate(board)
+
+        max_value = float("-inf")
+        for move in board.legal_moves:
             board.push(move)
-        result = board.result()
-        if result == "1-0":
-            return 1 if self.ai_color == chess.WHITE else -1
-        elif result == "0-1":
-            return 1 if self.ai_color == chess.BLACK else -1
-        else:
-            return 0
+            value = -self.negamax(board, depth - 1, -color)
+            board.pop()
+            max_value = max(max_value, value)
+
+        return max_value
+
+    def evaluate(self, board):
+        # Simplified evaluation: material count
+        material = sum(
+            piece_value[piece.piece_type] for piece in board.piece_map().values()
+        )
+        return material if board.turn == chess.WHITE else -material
+
+
+piece_value = {
+    chess.PAWN: 1,
+    chess.KNIGHT: 3,
+    chess.BISHOP: 3,
+    chess.ROOK: 5,
+    chess.QUEEN: 9,
+    chess.KING: 0,  # The king's value is arbitrarily set to 0 since it cannot be captured
+}
