@@ -3,6 +3,7 @@ import logging
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QGridLayout, QLabel, QPushButton, QWidget
 
+from mcts import MCTS
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 from promotion_window import PromotionWindow
 
@@ -11,6 +12,8 @@ class ChessBoard:
     def __init__(self, layout):
         self.moveCount = 0
         self.playerTurn = "white"
+
+        self.all_legal_moves = []
 
         self.board = [[None for x in range(8)] for y in range(8)]
         self.buttons = {}
@@ -21,6 +24,14 @@ class ChessBoard:
         self.promotionWindow = PromotionWindow()
         self.promotionWindow.pieceSelected.connect(self.handlePieceSelected)
         self.promotionWindow.close()
+
+        # Create an instance of the MCTS class, passing all valid moves
+        self.mcts = MCTS(
+            model=None,
+            ai_color="black",
+            iterations=100,
+            all_valid_moves=self.get_all_valid_moves(),
+        )
 
         # Create white pieces
         self.board[0][0] = Rook("white")
@@ -45,6 +56,97 @@ class ChessBoard:
         self.board[7][7] = Rook("black")
         for i in range(8):
             self.board[6][i] = Pawn("black")
+
+    # Get the current state of the board
+    def get_board_state(self):
+        # convert current board state to fen
+        fen = ""
+        for row in self.board:
+            empty = 0
+            for piece in row:
+                if piece is None:
+                    empty += 1
+                else:
+                    if empty > 0:
+                        fen += str(empty)
+                        empty = 0
+                    fen += piece.fen_symbol
+            if empty > 0:
+                fen += str(empty)
+            fen += "/"
+        return fen[:-1]
+
+    def promotePawn(self, x, y, colour):
+        print(f"Promoting pawn at ({x}, {y})")
+
+    def game_over(self):
+        return self.areYouInCheck("white") == 2 or self.areYouInCheck("black") == 2
+
+    def get_all_valid_moves(self):
+        moves = []
+        for x in range(8):
+            for y in range(8):
+                piece = self.board[x][y]
+                if piece is not None and piece.colour == "black":
+                    valid_moves = piece.getValidMoves(self.board, x, y)
+                    for move in valid_moves:
+                        moves.append(((x, y), move))
+
+        # convert from tuple to UCI format
+        moves = [
+            f"{chr(97 + start[1])}{8 - start[0]}{chr(97 + end[1])}{8 - end[0]}"
+            for start, end in moves
+        ]
+        # remove all moves where the start and end squares are the same
+        moves = [move for move in moves if move[0] != move[2] or move[1] != move[3]]
+
+        # remove all moves where the king is in check
+        for move in moves:
+            old_x, old_y, new_x, new_y = self.uci_to_coords(move)
+            temp = self.board[new_x][new_y]
+            self.board[new_x][new_y] = self.board[old_x][old_y]
+            self.board[old_x][old_y] = None
+            if self.areYouInCheck("black"):
+                moves.remove(move)
+            self.board[old_x][old_y] = self.board[new_x][new_y]
+            self.board[new_x][new_y] = temp
+
+        self.all_legal_moves = moves
+        print("chessboard all valid moves: ", moves)
+
+        return moves
+
+    def uci_to_coords(self, uci):
+        # Convert UCI move (e.g., 'e2e4') to coordinates (e.g., (6, 4, 4, 4))
+        col_dict = {"a": 0, "b": 1, "c": 2, "d": 3, "e": 4, "f": 5, "g": 6, "h": 7}
+        start_col, start_row, end_col, end_row = (
+            col_dict[uci[0]],
+            int(uci[1]) - 1,
+            col_dict[uci[2]],
+            int(uci[3]) - 1,
+        )
+        return 7 - start_row, start_col, 7 - end_row, end_col
+
+    def game_loop(self):
+        print("Game loop called")
+        if self.playerTurn == "black":
+            move_uci = self.mcts.get_best_move(
+                self, all_valid_moves=self.get_all_valid_moves()
+            )
+            if move_uci:  # when b7b8n
+                print(f"Best move found by MCTS: {move_uci}")  # Debug print
+                move = self.uci_to_coords(move_uci)
+                print(f"Converted move: {move}")
+                self.execute_move(move)
+            else:
+                exit(1)
+            self.playerTurn = "white"
+            self.moveCount += 1
+
+    # Ensure the execute_move method expects move in the format (old_x, old_y, new_x, new_y)
+    def execute_move(self, move):
+        old_x, old_y, new_x, new_y = move
+        return self.movePiece(self.board[old_x][old_y], old_x, old_y, new_x, new_y)
 
     # called when a piece is selected & promotion window is open
     def handlePieceSelected(self, piece):
@@ -106,7 +208,7 @@ class ChessBoard:
                 button.setStyleSheet("background-color: green; border: None")
 
         #! For development purposes / Debugging
-        # button.setText(f"{x},{y}")
+        button.setText(f"{x},{y}")
 
         # set the objectName property to the coordinates of the square
         self.buttons[f"{x},{y}"] = button
@@ -210,6 +312,8 @@ class ChessBoard:
         self.highlightedSquares = []
 
     def movePiece(self, piece, old_x, old_y, new_x, new_y):
+        print(f"board state: {self.get_board_state()}")
+
         print(
             f"movePiece; old_x: {old_x}, old_y: {old_y}, new_x: {new_x}, new_y: {new_y}"
         )
@@ -276,6 +380,12 @@ class ChessBoard:
                 print("Invalid move: Destination occupied by your own piece")
         else:
             print("Invalid move: No piece at the selected position")
+
+        # always return the move as a tuple
+        print(f"From: ({old_x}, {old_y}) To: ({new_x}, {new_y})")
+        # call the game loop
+        self.game_loop()
+        return (old_x, old_y, new_x, new_y)
 
     def regenerateBoard(self):
         layout = self.buttons["0,0"].parentWidget().layout()
