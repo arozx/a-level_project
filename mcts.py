@@ -1,5 +1,3 @@
-# mcts.py
-
 import math
 from multiprocessing import Pool, cpu_count
 
