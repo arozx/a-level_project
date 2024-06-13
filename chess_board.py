@@ -29,7 +29,7 @@ class ChessBoard:
         self.mcts = MCTS(
             model=None,
             ai_color="black",
-            iterations=50,
+            iterations=100,
             all_valid_moves=self.get_all_valid_moves(),
         )
 
@@ -99,6 +99,18 @@ class ChessBoard:
         ]
         # remove all moves where the start and end squares are the same
         moves = [move for move in moves if move[0] != move[2] or move[1] != move[3]]
+
+        # remove all moves where the king is in check
+        for move in moves:
+            old_x, old_y, new_x, new_y = self.uci_to_coords(move)
+            temp = self.board[new_x][new_y]
+            self.board[new_x][new_y] = self.board[old_x][old_y]
+            self.board[old_x][old_y] = None
+            if self.areYouInCheck("black"):
+                moves.remove(move)
+            self.board[old_x][old_y] = self.board[new_x][new_y]
+            self.board[new_x][new_y] = temp
+
         self.all_legal_moves = moves
         print("chessboard all valid moves: ", moves)
 
