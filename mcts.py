@@ -56,6 +56,7 @@ class MCTS:
         self.root = None
         self.iterations = iterations
         self.all_valid_moves = all_valid_moves
+        self.transposition_table = {}  # Initialize transposition table
 
     def __call__(self, human_move):
         max_workers = cpu_count()
@@ -76,6 +77,9 @@ class MCTS:
 
         print("self.all_valid_moves: ", all_valid_moves)  # Debug print
         self.root.expand(all_valid_moves)  # Expand root node with valid moves
+        print(
+            f"Root node has {len(self.root.children)} children after expansion."
+        )  # Debug print
 
         best_move = self.__call__(None)
 
@@ -89,6 +93,7 @@ class MCTS:
         while not node.is_leaf():
             node = node.best_child(exploration_weight=1.4)
             if node is None:
+                print("Node is None during iteration.")  # Debug print
                 return
 
         board = chess.Board(node.board_fen)  # Initialize board with FEN
@@ -103,8 +108,17 @@ class MCTS:
             node = node.parent
 
     def negamax(self, board, depth, color, alpha, beta):
+        fen = board.fen()
+
+        if fen in self.transposition_table:
+            stored_depth, stored_value = self.transposition_table[fen]
+            if stored_depth >= depth:
+                return stored_value
+
         if depth == 0 or board.is_game_over():
-            return color * self.evaluate(board)
+            value = color * self.evaluate(board)
+            self.transposition_table[fen] = (depth, value)
+            return value
 
         max_value = float("-inf")
         for move in board.legal_moves:
@@ -116,9 +130,11 @@ class MCTS:
             if alpha >= beta:
                 break  # Beta cutoff
 
+        self.transposition_table[fen] = (depth, max_value)
         return max_value
 
     def evaluate(self, board):
+        # Simplified evaluation: material count
         material = sum(
             piece_value[piece.piece_type] for piece in board.piece_map().values()
         )
@@ -131,5 +147,5 @@ piece_value = {
     chess.BISHOP: 3,
     chess.ROOK: 5,
     chess.QUEEN: 9,
-    chess.KING: 0,  # The king's value = 0 since it cannot be captured
+    chess.KING: 0,  # The king's value is arbitrarily set to 0 since it cannot be captured
 }
