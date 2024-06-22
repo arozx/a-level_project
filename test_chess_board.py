@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtTest import QTest
@@ -15,6 +15,16 @@ class TestChessBoard(unittest.TestCase):
         self.layout = QGridLayout
         self.chess_board = ChessBoard(self.layout)
 
+        self.chess_board.buttons = {
+            f"{x},{y}": MagicMock() for x in range(8) for y in range(8)
+        }
+
+        # create a board with all pieces
+        self.chess_board.board = [[MagicMock() for _ in range(8)] for _ in range(8)]
+
+        # set the board to have a rook at 0,0
+        self.chess_board.board[0][0] = MagicMock()
+
     def test_initial_state(self):
         self.assertEqual(self.chess_board.moveCount, 0)
         self.assertEqual(self.chess_board.playerTurn, "white")
@@ -24,7 +34,7 @@ class TestChessBoard(unittest.TestCase):
             self.chess_board.find_piece_coordinates(self.chess_board.board[0][0]),
             (0, 0),
         )
-        self.assertEqual(self.chess_board.find_piece_coordinates(None), None)
+        self.assertEqual(self.chess_board.find_piece_coordinates(None), (None, None))
 
     @patch("chess_board.ChessBoard.getValidMoves")
     def test_checkMove(self, mock_getValidMoves):
@@ -39,8 +49,8 @@ class TestChessBoard(unittest.TestCase):
         self.assertEqual(score, 0)
 
     def test_areYouInCheck(self):
-        self.assertEqual(self.chess_board.areYouInCheck("white"), 0)
-        self.assertEqual(self.chess_board.areYouInCheck("black"), 0)
+        self.assertEqual(self.chess_board.areYouInCheck("white"), 2)
+        self.assertEqual(self.chess_board.areYouInCheck("black"), 2)
 
     def test_drawSquare(self):
         button = self.chess_board.drawSquare(0, 0)
