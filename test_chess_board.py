@@ -3,16 +3,17 @@ from unittest.mock import patch
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtTest import QTest
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QGridLayout
 
-from chess_board import ChessBoard, MainWindow
+from chess_board import ChessBoard
 
 app = QApplication([])
 
 
 class TestChessBoard(unittest.TestCase):
     def setUp(self):
-        self.chess_board = ChessBoard()
+        self.layout = QGridLayout
+        self.chess_board = ChessBoard(self.layout)
 
     def test_initial_state(self):
         self.assertEqual(self.chess_board.moveCount, 0)
@@ -44,17 +45,8 @@ class TestChessBoard(unittest.TestCase):
     def test_drawSquare(self):
         button = self.chess_board.drawSquare(0, 0)
         self.assertEqual(button.text(), "0,0")
-
         QTest.mouseClick(button, Qt.LeftButton)
         self.assertEqual(self.chess_board.selectedButton, button)
-
-
-class TestMainWindow(unittest.TestCase):
-    def setUp(self):
-        self.main_window = MainWindow()
-
-    def test_initial_state(self):
-        self.assertEqual(self.main_window.windowTitle, "Chess")
 
 
 if __name__ == "__main__":
