@@ -70,7 +70,25 @@ class ChessBoard:
                     if empty > 0:
                         fen += str(empty)
                         empty = 0
-                    fen += piece.fen_symbol
+
+                    # use the piece to determine the fen symbol
+                    match piece.__class__.__name__:
+                        case "Pawn":
+                            fen += "p"
+                        case "Knight":
+                            fen += "n"
+                        case "Bishop":
+                            fen += "b"
+                        case "Rook":
+                            fen += "r"
+                        case "Queen":
+                            fen += "q"
+                        case "King":
+                            fen += "k"
+
+                    if piece.colour == "white":
+                        fen = fen[:-1] + fen[-1].upper()
+
             if empty > 0:
                 fen += str(empty)
             fen += "/"
