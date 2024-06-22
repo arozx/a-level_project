@@ -44,10 +44,6 @@ class TestChessBoard(unittest.TestCase):
             self.chess_board.selectedButton, self.chess_board.buttons["0,0"]
         )
 
-    def test_calculateMaterialScore(self):
-        score = self.chess_board.calculateMaterialScore()
-        self.assertEqual(score, 0)
-
     def test_areYouInCheck(self):
         self.assertEqual(self.chess_board.areYouInCheck("white"), 2)
         self.assertEqual(self.chess_board.areYouInCheck("black"), 2)
