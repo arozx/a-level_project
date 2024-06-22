@@ -173,11 +173,12 @@ class ChessBoard:
         print(f"Piece selected: {piece}")
 
     def find_piece_coordinates(self, piece):
+        if piece is None:
+            return None, None
         for x in range(len(self.board)):
             for y in range(len(self.board[x])):
                 if self.board[x][y] == piece:
                     return x, y
-        return None  # return None if the piece is not found
 
     # check if a piece & square have been clicked, then call movePiece
     def checkMove(self, piece, square):
