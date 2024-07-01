@@ -279,7 +279,6 @@ class ChessBoard:
         x = int(x)
         y = int(y)
         if self.board[x][y] is not None:
-            print(self.board[x][y].getValidMoves(board, x, y))
             return self.board[x][y].getValidMoves(board, x, y)
         else:
             return []
