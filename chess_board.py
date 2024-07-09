@@ -32,30 +32,33 @@ class ChessBoard:
         self.moveCount = 0
         self.playerTurn = "white"
 
-        # get the board colours from arguments
-        parser = argparse.ArgumentParser(description="Store two RGB values.")
+        try:
+            # get the board colours from arguments
+            parser = argparse.ArgumentParser(description="Store two RGB values.")
 
-        # Add arguments for the two RGB values
-        parser.add_argument(
-            "rgb1",
-            type=parse_rgb,
-            help="First RGB value in the format 'R,G,B' where R, G, and B are integers between 0 and 255",
-        )
-        parser.add_argument(
-            "rgb2",
-            type=parse_rgb,
-            help="Second RGB value in the format 'R,G,B' where R, G, and B are integers between 0 and 255",
-        )
+            # Add arguments for the two RGB values
+            parser.add_argument(
+                "rgb1",
+                type=parse_rgb,
+                help="First RGB value in the format 'R,G,B' where R, G, and B are integers between 0 and 255",
+            )
+            parser.add_argument(
+                "rgb2",
+                type=parse_rgb,
+                help="Second RGB value in the format 'R,G,B' where R, G, and B are integers between 0 and 255",
+            )
 
-        # Parse the arguments
-        args = parser.parse_args()
+            # Parse the arguments
+            args = parser.parse_args()
 
-        # Print the RGB values
-        print(f"White RGB value: {args.rgb1}")
-        print(f"Black RGB value: {args.rgb2}")
+            # Print the RGB values
+            print(f"White RGB value: {args.rgb1}")
+            print(f"Black RGB value: {args.rgb2}")
 
-        self.white_rgb = args.rgb1
-        self.black_rgb = args.rgb2
+            self.white_rgb = args.rgb1
+            self.black_rgb = args.rgb2
+        except argparse.ArgumentTypeError as e:
+            print(f"Error: {e}")
 
         self.all_legal_moves = []
 
