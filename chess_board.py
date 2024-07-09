@@ -2,7 +2,15 @@ import argparse
 import logging
 
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication, QGridLayout, QLabel, QPushButton, QWidget
+from PyQt5.QtWidgets import (
+    QApplication,
+    QGridLayout,
+    QLabel,
+    QListView,
+    QListWidget,
+    QPushButton,
+    QWidget,
+)
 
 from mcts import MCTS
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
@@ -317,8 +325,17 @@ class ChessBoard:
                 button = self.drawSquare(x, y)
                 layout.addWidget(button, x, y)
 
-        self._scoreLabel = QLabel("White Score: 0")
-        layout.addWidget(self._scoreLabel, 8, 0, 1, 8)
+        # add move history table schrollable
+        self._moveHistory = QListWidget()
+        self._moveHistory.setViewMode(QListView.IconMode)
+        self._moveHistory.setResizeMode(QListView.Adjust)
+        self._moveHistory.setGridSize(self._moveHistory.sizeHint())
+
+        # add the moves from self.move_history to the list
+        for move in self.move_table:
+            self._moveHistory.addItem(move)
+
+        layout.addWidget(self._moveHistory, 0, 8, 8, 1)
 
         # check if there is a piece on the square and call drawPiece
         for x in range(8):
