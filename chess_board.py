@@ -1,3 +1,4 @@
+import argparse
 import logging
 
 from PyQt5.QtGui import QIcon
@@ -8,10 +9,56 @@ from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 from promotion_window import PromotionWindow
 
 
+def parse_rgb(value):
+    try:
+        # Split the input string by commas
+        r, g, b = map(int, value.split(","))
+
+        r, g, b = int(r), int(g), int(b)
+
+        # Check if each value is within the 0-255 range
+        if not all(0 <= val <= 255 for val in (r, g, b)):
+            raise ValueError
+
+        return (r, g, b)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "RGB values must be in the form 'R,G,B' and each between 0 and 255."
+        )
+
+
 class ChessBoard:
     def __init__(self, layout):
         self.moveCount = 0
         self.playerTurn = "white"
+
+        try:
+            # get the board colours from arguments
+            parser = argparse.ArgumentParser(description="Store two RGB values.")
+
+            # Add arguments for the two RGB values
+            parser.add_argument(
+                "rgb1",
+                type=parse_rgb,
+                help="First RGB value in the format 'R,G,B' where R, G, and B are integers between 0 and 255",
+            )
+            parser.add_argument(
+                "rgb2",
+                type=parse_rgb,
+                help="Second RGB value in the format 'R,G,B' where R, G, and B are integers between 0 and 255",
+            )
+
+            # Parse the arguments
+            args = parser.parse_args()
+
+            # Print the RGB values
+            print(f"White RGB value: {args.rgb1}")
+            print(f"Black RGB value: {args.rgb2}")
+
+            self.white_rgb = args.rgb1
+            self.black_rgb = args.rgb2
+        except argparse.ArgumentTypeError as e:
+            print(f"Error: {e}")
 
         self.all_legal_moves = []
 
@@ -28,7 +75,7 @@ class ChessBoard:
         # Create an instance of the MCTS class, passing all valid moves
         self.mcts = MCTS(
             model=None,
-            ai_color="black",
+            ai_color="white",
             iterations=100,
             all_valid_moves=self.get_all_valid_moves(),
         )
@@ -148,6 +195,7 @@ class ChessBoard:
     def game_loop(self):
         print("Game loop called")
         if self.playerTurn == "black":
+            print("f {self.all_valid_moves()}")
             move_uci = self.mcts.get_best_move(
                 self, all_valid_moves=self.get_all_valid_moves()
             )
@@ -219,12 +267,22 @@ class ChessBoard:
         button.setFixedSize(100, 100)
 
         if x is not None and y is not None:
-            if (x + y) % 2 == 0:
-                button.setProperty("class", "white")
-                button.setStyleSheet("background-color: white; border: None")
-            else:
-                button.setProperty("class", "black")
-                button.setStyleSheet("background-color: green; border: None")
+            if (x + y) % 2 == 0:  # sets white squares
+                if self.white_rgb:
+                    button.setStyleSheet(
+                        f"background-color: rgb{self.white_rgb}; border: None"
+                    )
+                else:
+                    button.setProperty("class", "white")
+                    button.setStyleSheet("background-color: white; border: None")
+            else:  # sets black squares
+                if self.black_rgb:
+                    button.setStyleSheet(
+                        f"background-color: rgb{self.black_rgb}; border: None"
+                    )
+                else:
+                    button.setProperty("class", "black")
+                    button.setStyleSheet("background-color: green; border: None")
 
         #! For development purposes / Debugging
         button.setText(f"{x},{y}")

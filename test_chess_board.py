@@ -1,3 +1,4 @@
+# test_chess_board.py
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -12,7 +13,11 @@ app = QApplication([])
 
 class TestChessBoard(unittest.TestCase):
     def setUp(self):
-        self.layout = QGridLayout
+        self.layout = QGridLayout()
+        self.patcher = patch(
+            "sys.argv", ["test_chess_board.py", "255,255,255", "0,0,0"]
+        )
+        self.mock_argv = self.patcher.start()
         self.chess_board = ChessBoard(self.layout)
 
         self.chess_board.buttons = {
@@ -24,6 +29,9 @@ class TestChessBoard(unittest.TestCase):
 
         # set the board to have a rook at 0,0
         self.chess_board.board[0][0] = MagicMock()
+
+    def tearDown(self):
+        self.patcher.stop()
 
     def test_initial_state(self):
         self.assertEqual(self.chess_board.moveCount, 0)
