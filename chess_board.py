@@ -61,6 +61,7 @@ class ChessBoard:
             print(f"Error: {e}")
 
         self.all_legal_moves = []
+        self.move_table = []
 
         self.board = [[None for x in range(8)] for y in range(8)]
         self.buttons = {}
@@ -193,7 +194,7 @@ class ChessBoard:
         return 7 - start_row, start_col, 7 - end_row, end_col
 
     def game_loop(self):
-        print("Game loop called")
+        print("Game loop called, history: ", self.move_table)
         if self.playerTurn == "black":
             print("f {self.all_valid_moves()}")
             move_uci = self.mcts.get_best_move(
@@ -204,6 +205,9 @@ class ChessBoard:
                 move = self.uci_to_coords(move_uci)
                 print(f"Converted move: {move}")
                 self.execute_move(move)
+
+                # add to move table with colour
+                self.move_table.append((move_uci, "black"))
             else:
                 exit(1)
             self.playerTurn = "white"
@@ -459,6 +463,12 @@ class ChessBoard:
 
         # always return the move as a tuple
         print(f"From: ({old_x}, {old_y}) To: ({new_x}, {new_y})")
+
+        # add move to table with colour
+        self.move_table.append(
+            (f"{chr(97 + old_y)}{8 - old_x}{chr(97 + new_y)}{8 - new_x}", "white")
+        )
+
         # call the game loop
         self.game_loop()
         return (old_x, old_y, new_x, new_y)
