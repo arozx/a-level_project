@@ -32,25 +32,30 @@ class ChessBoard:
         self.moveCount = 0
         self.playerTurn = "white"
 
-        # default board colours RGB
-        self.white = (255, 255, 255)
-        self.black = (0, 0, 0)
-
         # get the board colours from arguments
-        parser = argparse.ArgumentParser(description="Store an RGB value.")
+        parser = argparse.ArgumentParser(description="Store two RGB values.")
 
-        # Add an argument for the RGB value
+        # Add arguments for the two RGB values
         parser.add_argument(
-            "rgb",
+            "rgb1",
             type=parse_rgb,
-            help="RGB value in the format 'R,G,B' where R, G, and B are integers between 0 and 255",
+            help="First RGB value in the format 'R,G,B' where R, G, and B are integers between 0 and 255",
+        )
+        parser.add_argument(
+            "rgb2",
+            type=parse_rgb,
+            help="Second RGB value in the format 'R,G,B' where R, G, and B are integers between 0 and 255",
         )
 
         # Parse the arguments
         args = parser.parse_args()
 
-        # Print the RGB value
-        print(f"RGB value: {args.rgb}")
+        # Print the RGB values
+        print(f"White RGB value: {args.rgb1}")
+        print(f"Black RGB value: {args.rgb2}")
+
+        self.white_rgb = args.rgb1
+        self.black_rgb = args.rgb2
 
         self.all_legal_moves = []
 
@@ -260,11 +265,21 @@ class ChessBoard:
 
         if x is not None and y is not None:
             if (x + y) % 2 == 0:  # sets white squares
-                button.setProperty("class", "white")
-                button.setStyleSheet("background-color: white; border: None")
+                if self.white_rgb:
+                    button.setStyleSheet(
+                        f"background-color: rgb{self.white_rgb}; border: None"
+                    )
+                else:
+                    button.setProperty("class", "white")
+                    button.setStyleSheet("background-color: white; border: None")
             else:  # sets black squares
-                button.setProperty("class", "black")
-                button.setStyleSheet("background-color: green; border: None")
+                if self.black_rgb:
+                    button.setStyleSheet(
+                        f"background-color: rgb{self.black_rgb}; border: None"
+                    )
+                else:
+                    button.setProperty("class", "black")
+                    button.setStyleSheet("background-color: green; border: None")
 
         #! For development purposes / Debugging
         button.setText(f"{x},{y}")
