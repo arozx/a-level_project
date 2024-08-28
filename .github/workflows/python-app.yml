@@ -35,7 +35,8 @@ jobs:
       - name: Test with pytest
         run: |
           pip install pytest
-          xvfb-run -a pytest test_*.py
+          mkdir -p .coverage-reports
+          xvfb-run -a pytest --cov=. --cov-report=xml:.coverage-reports/coverage-${{ matrix.python-version }}.xml test_*.py
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
