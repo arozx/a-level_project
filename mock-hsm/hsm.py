@@ -2,13 +2,16 @@ import tornado.ioloop
 import tornado.web
 import base64
 import secrets
+import os
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 from Crypto.Protocol.KDF import PBKDF2
 # Key and IV for AES encryption
 SALT = get_random_bytes(16)
-PASSWORD = b"password"  # Replace with your own password
+
+# Load password from environment variable
+PASSWORD = os.environ.get("HSM_PASSWORD", "password")
 
 # Derive key and IV using PBKDF2
 AES_KEY = PBKDF2(PASSWORD, SALT, dkLen=16, count=100000)
@@ -20,17 +23,17 @@ class HSM:
         self.iv = iv
 
     def encrypt(self, plaintext):
-        cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
+        cipher = AES.new(self.key, AES.MODE_GCM, self.iv)
         ciphertext = cipher.encrypt(pad(plaintext.encode('utf-8'), AES.block_size))
         return base64.b64encode(ciphertext).decode('utf-8')
 
     def decrypt(self, ciphertext):
-        cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
+        cipher = AES.new(self.key, AES.MODE_GCM, self.iv)
         plaintext = unpad(cipher.decrypt(base64.b64decode(ciphertext)), AES.block_size)
         return plaintext.decode('utf-8')
 
     def generate_random_key(self):
-        return ''.join(secrets.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for i in range(16))
+        return ''.join(secrets.choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for _ in range(16))
 
 class EncryptHandler(tornado.web.RequestHandler):
     def initialize(self, hsm):
