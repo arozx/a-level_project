@@ -5,10 +5,14 @@ import secrets
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
-
+from Crypto.Protocol.KDF import PBKDF2
 # Key and IV for AES encryption
-AES_KEY = get_random_bytes(16)
-AES_IV = get_random_bytes(16)
+SALT = get_random_bytes(16)
+PASSWORD = b"password"  # Replace with your own password
+
+# Derive key and IV using PBKDF2
+AES_KEY = PBKDF2(PASSWORD, SALT, dkLen=16, count=100000)
+AES_IV = PBKDF2(PASSWORD, SALT, dkLen=16, count=100000, hmac_hash_module=SHA256)
 
 class HSM:
     def __init__(self, key, iv):
