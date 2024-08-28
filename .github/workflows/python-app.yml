@@ -9,16 +9,12 @@ on:
   pull_request:
     branches: ["*"]
 
-permissions:
-  contents: read
-
 jobs:
-  build:
+  sonarcloud:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
-
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
@@ -40,3 +36,8 @@ jobs:
         run: |
           pip install pytest
           xvfb-run -a pytest test_*.py
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
