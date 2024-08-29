@@ -141,7 +141,7 @@ class ChessBoard:
             fen += "/"
         return fen[:-1]
 
-    def promotePawn(self, x, y, colour):
+    def promote_pawn(self, x, y):
         print(f"Promoting pawn at ({x}, {y})")
 
     def game_over(self):
