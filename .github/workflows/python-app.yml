@@ -24,7 +24,7 @@ jobs:
           cache: "pip"
       - run: |
           pip install -r requirements.txt
-          sudo apt-get install -y python3-pyqt5 xvfb
+          sudo apt-get install -y python3-pyqt5
 
       - name: Lint with Ruff
         run: |
@@ -34,9 +34,8 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pip install pytest
-          mkdir -p .coverage-reports
-          xvfb-run -a pytest --cov=. --cov-report=xml:.coverage-reports/coverage-${{ matrix.python-version }}.xml test_*.py
+          pip install tox pytest pytest-cov
+          tox
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
