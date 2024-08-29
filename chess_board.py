@@ -441,7 +441,7 @@ class ChessBoard:
                     print(
                         f"Promotion: {new_piece.colour} {new_piece.__class__.__name__}"
                     )
-                    self.promotePawn(new_x, new_y, new_piece.colour)
+                    self.promote_pawn(new_x, new_y)
 
                 # Regenerate the board
                 self.regenerateBoard()
