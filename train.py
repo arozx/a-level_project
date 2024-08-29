@@ -230,13 +230,16 @@ def main():
     )
     model = ChessModel()
 
+    # Log path
+    log_path = "tb_logs/chess_ai"
+
     # remove old logs
-    if os.path.exists("tb_logs/chess_ai"):
+    if os.path.exists(log_path):
         print("removing old logs...")
-        shutil.rmtree("tb_logs/chess_ai")
+        shutil.rmtree(log_path)
 
     # create the directory for the TensorBoard logs
-    os.makedirs("tb_logs/chess_ai")
+    os.makedirs(log_path)
 
     # Initialize the TensorBoard logger
     logger = TensorBoardLogger("tb_logs", name="chess_ai")
@@ -272,7 +275,7 @@ def main():
     trainer.test()
 
     # Initialize the TensorBoard writer and add the model graph
-    writer = SummaryWriter(log_dir="tb_logs/chess_ai")
+    writer = SummaryWriter(log_path)
     x, _ = next(iter(datamodule.train_dataloader()))
     writer.add_graph(model, x)
 
