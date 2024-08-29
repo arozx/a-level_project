@@ -61,7 +61,7 @@ def add_game_to_db(game, file_id):
     event = headers.get("Event", "Unknown")
     site = headers.get("Site", "Unknown")
     date = headers.get("Date", "Unknown")
-    round = headers.get("Round", "Unknown")
+    _round = headers.get("Round", "Unknown")
     utc_date = headers.get("UTCDate", "Unknown")
     utc_time = headers.get("UTCTime", "Unknown")
     white_rating_diff = headers.get("WhiteRatingDiff", "Unknown")
@@ -90,7 +90,7 @@ def add_game_to_db(game, file_id):
         "event": event,
         "site": site,
         "date": date,
-        "round": round,
+        "round": _round,
         "utc_date": utc_date,
         "utc_time": utc_time,
         "white_rating_diff": white_rating_diff,
@@ -134,7 +134,7 @@ def process_file(file):
                 if len(games_list) >= 1000:  # batch size
                     df = pd.DataFrame(games_list)
                     df.drop(
-                        columns=["file_id"], inplace=True
+                        columns=["file_id"]
                     )  # drop the file_id column before inserting into the database
                     df.to_sql("games", conn, if_exists="append", index=False)
                     games_list = []  # clear the list
@@ -165,7 +165,7 @@ if __name__ == "__main__":
         for i in range(games):
             try:
                 with open(f"{file}{i+1}") as f:
-                    pass
+                    f.close()
             except FileNotFoundError:  # check if the file exists
                 split_file(file, games)
 
