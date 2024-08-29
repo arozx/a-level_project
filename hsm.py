@@ -7,6 +7,7 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 from Crypto.Protocol.KDF import PBKDF2
+from Crypto.Hash import SHA256
 # Key and IV for AES encryption
 SALT = get_random_bytes(16)
 

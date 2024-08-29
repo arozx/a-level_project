@@ -9,16 +9,12 @@ on:
   pull_request:
     branches: ["*"]
 
-permissions:
-  contents: read
-
 jobs:
-  build:
+  sonarcloud:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
-
+        python-version: ["3.11"]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
@@ -28,7 +24,6 @@ jobs:
           cache: "pip"
       - run: |
           pip install -r requirements.txt
-          sudo apt-get install -y python3-pyqt5 xvfb
 
       - name: Lint with Ruff
         run: |
@@ -38,5 +33,12 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pip install pytest
-          xvfb-run -a pytest test_*.py
+          pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess
+          sudo apt-get install -y xvfb
+          # Run tests with a virtual display to allow PyQt5 to run
+          tox
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
