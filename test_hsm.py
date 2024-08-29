@@ -1,6 +1,7 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from hsm import HSM
+import unittest
 
 class TestHSM(unittest.TestCase):
     def setUp(self):
@@ -17,6 +18,3 @@ class TestHSM(unittest.TestCase):
     def test_generate_random_key(self):
         random_key = self.hsm.generate_random_key()
         self.assertEqual(len(random_key), 16)
-
-if __name__ == "__main__":
-    unittest.main()
