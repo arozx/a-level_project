@@ -34,7 +34,7 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pip install tox pytest pytest-cov
+          pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess
           tox
 
       - name: SonarCloud Scan
