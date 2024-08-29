@@ -34,7 +34,9 @@ jobs:
       - name: Test with pytest
         run: |
           pip install tox pytest pytest-cov tornado pycryptodome PyQt5 chess
-          tox
+          sudo apt-get install -y xvfb
+          # Run tests with a virtual display to allow PyQt5 to run
+          xvfb-run -a tox
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
