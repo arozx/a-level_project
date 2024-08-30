@@ -18,7 +18,7 @@ class Rook(Piece):
         super().__init__(colour)
         self.weight = 5
 
-    def getValidMoves(self, board, x, y):
+    def get_valid_moves(self, board, x, y):
         valid_moves = []
         valid_moves.append((x, y))
 
@@ -75,7 +75,7 @@ class Knight(Piece):
         super().__init__(colour)
         self.weight = 3
 
-    def getValidMoves(self, board, x, y):
+    def get_valid_moves(self, board, x, y):
         valid_moves = []
         # calculate all L shaped moves
         moves = [(1, 2), (1, -2), (-1, 2), (-1, -2), (2, 1), (2, -1), (-2, 1), (-2, -1)]
@@ -92,7 +92,7 @@ class Bishop(Piece):
         super().__init__(colour)
         self.weight = 3
 
-    def getValidMoves(self, board, x, y):
+    def get_valid_moves(self, board, x, y):
         valid_moves = []
         # Check diagonal up-right
         i = 1
@@ -146,7 +146,7 @@ class Queen(Piece):
         super().__init__(colour)
         self.weight = 9
 
-    def getValidMoves(self, board, x, y):
+    def get_valid_moves(self, board, x, y):
         valid_moves = []
         # define movement directions
         directions = [
@@ -179,7 +179,7 @@ class King(Piece):
         super().__init__(colour)
         self.weight = 0
 
-    def getValidMoves(self, board, x, y):
+    def get_valid_moves(self, board, x, y):
         valid_moves = []
         # define movement directions
         directions = [
@@ -207,7 +207,7 @@ class Pawn(Piece):
         self.first_move = True
         self.weight = 1
 
-    def getValidMoves(self, board, x, y):
+    def get_valid_moves(self, board, x, y):
         valid_moves = []
 
         # Determine the direction of movement based on the color of the pawn
