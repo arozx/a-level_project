@@ -34,8 +34,8 @@ class TestChessBoard(unittest.TestCase):
         self.patcher.stop()
 
     def test_initial_state(self):
-        self.assertEqual(self.chess_board.moveCount, 0)
-        self.assertEqual(self.chess_board.playerTurn, "white")
+        self.assertEqual(self.chess_board.move_count, 0)
+        self.assertEqual(self.chess_board.player_turn, "white")
 
     def test_find_piece_coordinates(self):
         self.assertEqual(
@@ -44,23 +44,23 @@ class TestChessBoard(unittest.TestCase):
         )
         self.assertEqual(self.chess_board.find_piece_coordinates(None), (None, None))
 
-    @patch("chess_board.ChessBoard.getValidMoves")
-    def test_checkMove(self, mock_getValidMoves):
-        mock_getValidMoves.return_value = []
-        self.chess_board.checkMove(self.chess_board.board[0][0], "0,0")
+    @patch("chess_board.ChessBoard.get_valid_moves")
+    def test_check_move(self, mock_get_valid_moves):
+        mock_get_valid_moves.return_value = []
+        self.chess_board.check_move(self.chess_board.board[0][0], "0,0")
         self.assertEqual(
-            self.chess_board.selectedButton, self.chess_board.buttons["0,0"]
+            self.chess_board.selected_button, self.chess_board.buttons["0,0"]
         )
 
-    def test_areYouInCheck(self):
-        self.assertEqual(self.chess_board.areYouInCheck("white"), 2)
-        self.assertEqual(self.chess_board.areYouInCheck("black"), 2)
+    def test_are_you_in_check(self):
+        self.assertEqual(self.chess_board.are_you_in_check("white"), 2)
+        self.assertEqual(self.chess_board.are_you_in_check("black"), 2)
 
-    def test_drawSquare(self):
-        button = self.chess_board.drawSquare(0, 0)
+    def test_draw_square(self):
+        button = self.chess_board.draw_square(0, 0)
         self.assertEqual(button.text(), "0,0")
         QTest.mouseClick(button, Qt.LeftButton)
-        self.assertEqual(self.chess_board.selectedButton, button)
+        self.assertEqual(self.chess_board.selected_button, button)
 
 
 if __name__ == "__main__":
