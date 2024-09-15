@@ -3,6 +3,8 @@ from multiprocessing import Pool, cpu_count
 
 import chess
 
+from eval_board import eval_board
+
 
 class Node:
     def __init__(self, board_fen, move=None, parent=None):
@@ -132,18 +134,7 @@ class MCTS:
         return max_value
 
     def evaluate(self, board):
-        # Simplified evaluation: material count
-        material = sum(
-            piece_value[piece.piece_type] for piece in board.piece_map().values()
-        )
-        return material if board.turn == chess.WHITE else -material
-
-
-piece_value = {
-    chess.PAWN: 1,
-    chess.KNIGHT: 3,
-    chess.BISHOP: 3,
-    chess.ROOK: 5,
-    chess.QUEEN: 9,
-    chess.KING: 0,  # The king's value is arbitrarily set to 0 since it cannot be captured
-}
+        # print(board)
+        score = eval_board(board, self.ai_color)
+        # print(self.ai_color)
+        return score
