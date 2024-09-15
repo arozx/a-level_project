@@ -9,6 +9,8 @@ def eval_board(board, colour):
     blocked = 0
     doubled = 0
     isolated = 0
+
+    mobility = 0
     """
         f(p) = 200(K-K')
            + 9(Q-Q')
@@ -71,8 +73,8 @@ def eval_board(board, colour):
                             doubled -= 0.5
                         else:
                             doubled += 0.5
-                    # TODO Blocked pawns
 
+                    # Blocked pawns
                     # check if ther is a piece infrount of the pawn
                     if board[i][x].colour == "white":
                         if board[i + 1][x].__class__.__name__ != "":
@@ -90,15 +92,56 @@ def eval_board(board, colour):
                                 case "black":
                                     blocked -= 0.5
 
+                    # Isolated pawns
+                    # Check for white isolated pawns
+                    if board[i][x].colour == "white":
+                        if board[i + 1][x + 1].__class__.__name__ == "Pawn":
+                            if board[i + 1][x + 1].colour == "white":
+                                match colour:
+                                    case "white":
+                                        isolated -= 0.5
+                                    case "black":
+                                        isolated += 0.5
+                        if board[i + 1][x - 1].__class__.__name__ == "Pawn":
+                            if board[i + 1][x - 1].colour == "white":
+                                match colour:
+                                    case "white":
+                                        isolated -= 0.5
+                                    case "black":
+                                        isolated += 0.5
+
+                    # Check for black isolated pawns
+                    if board[i][x].colour == "black":
+                        if board[i - 1][x + 1].__class__.__name__ == "Pawn":
+                            if board[i - 1][x + 1].colour == "black":
+                                match colour:
+                                    case "white":
+                                        isolated -= 0.5
+                                    case "black":
+                                        isolated += 0.5
+                        if board[i - 1][x - 1].__class__.__name__ == "Pawn":
+                            if board[i - 1][x - 1].colour == "black":
+                                match colour:
+                                    case "white":
+                                        isolated -= 0.5
+                                    case "black":
+                                        isolated += 0.5
             except TypeError:
                 # No piece at this position
                 pass
 
-                # TODO Isolated pawns
-
-            # TODO Calculate the mobility of the pieces
+            # Calculate mobility
+            try:
+                if board[i][x].colour == colour:
+                    mobility += len(board[i][x].get_moves(board, (i, x)))
+                else:
+                    mobility -= len(board[i][x].get_moves(board, (i, x)))
+            except AttributeError:
+                # No piece at this position
+                pass
 
     score -= 0.5 * (doubled + blocked + isolated)
+    score += 0.1 * mobility
 
     # log the score
     if score > 0:
