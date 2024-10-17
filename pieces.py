@@ -16,7 +16,12 @@ class Piece:
 class Rook(Piece):
     def __init__(self, colour):
         super().__init__(colour)
+        self.first_move = True
         self.weight = 5
+        if self.colour == "white":
+            self.symbol = "R"
+        else:
+            self.symbol = "r"
 
     def get_valid_moves(self, board, x, y):
         valid_moves = []
@@ -74,6 +79,10 @@ class Knight(Piece):
     def __init__(self, colour):
         super().__init__(colour)
         self.weight = 3
+        if self.colour == "white":
+            self.symbol = "N"
+        else:
+            self.symbol = "n"
 
     def get_valid_moves(self, board, x, y):
         valid_moves = []
@@ -91,6 +100,10 @@ class Bishop(Piece):
     def __init__(self, colour):
         super().__init__(colour)
         self.weight = 3
+        if self.colour == "white":
+            self.symbol = "B"
+        else:
+            self.symbol = "b"
 
     def get_valid_moves(self, board, x, y):
         valid_moves = []
@@ -145,6 +158,10 @@ class Queen(Piece):
     def __init__(self, colour):
         super().__init__(colour)
         self.weight = 9
+        if self.colour == "white":
+            self.symbol = "Q"
+        else:
+            self.symbol = "q"
 
     def get_valid_moves(self, board, x, y):
         valid_moves = []
@@ -177,7 +194,12 @@ class Queen(Piece):
 class King(Piece):
     def __init__(self, colour):
         super().__init__(colour)
+        self.first_move = True
         self.weight = 0
+        if self.colour == "white":
+            self.symbol = "K"
+        else:
+            self.symbol = "k"
 
     def get_valid_moves(self, board, x, y):
         valid_moves = []
@@ -206,6 +228,10 @@ class Pawn(Piece):
         super().__init__(colour)
         self.first_move = True
         self.weight = 1
+        if self.colour == "white":
+            self.symbol = "P"
+        else:
+            self.symbol = "p"
 
     def get_valid_moves(self, board, x, y):
         valid_moves = []

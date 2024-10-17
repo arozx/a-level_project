@@ -139,6 +139,8 @@ def eval_board(board, colour):
             except AttributeError:
                 # No piece at this position
                 pass
+            except Exception as e:
+                print(e)
 
     score -= 0.5 * (doubled + blocked + isolated)
     score += 0.1 * mobility

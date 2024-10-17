@@ -1,14 +1,23 @@
+"""
+mcts.py
+This exists as a standalone component of a chess application
+Uses a monte Carlo algorithm to generate moves with alpha beta pruning
+The best move is returned as a array of tuples
+"""
+
 import math
-from multiprocessing import Pool, cpu_count
+import random
 
+<<<<<<< Updated upstream
 import chess
-
-from eval_board import eval_board
+=======
+from pieces import Bishop, King, Knight, Pawn, Queen, Rook
+>>>>>>> Stashed changes
 
 
 class Node:
-    def __init__(self, board_fen, move=None, parent=None):
-        self.board_fen = board_fen  # Store FEN string
+    def __init__(self, board_array, move=None, parent=None):
+        self.board_array = board_array
         self.move = move
         self.parent = parent
         self.children = []
@@ -19,12 +28,30 @@ class Node:
         return len(self.children) == 0
 
     def expand(self, all_valid_moves):
-        for move_uci in all_valid_moves:
-            move = chess.Move.from_uci(move_uci)
-            new_board = chess.Board(self.board_fen)
-            new_board.push(move)
-            child = Node(new_board.fen(), move, self)
-            self.children.append(child)
+        for move in all_valid_moves:
+            new_board_array = self.apply_move(self.board_array, move)
+            if new_board_array:
+                child = Node(new_board_array, move, self)
+                self.children.append(child)
+
+    def apply_move(self, board_array, move):
+        new_board_array = [row[:] for row in board_array]
+        from_square, to_square = move
+        piece = new_board_array[from_square[0]][from_square[1]]
+
+        # when the move is not possible
+        if from_square == to_square:
+            return None
+
+        # end early if there is no piece on the square
+        if piece is None:
+            return None
+
+        # Move the piece
+        new_board_array[to_square[0]][to_square[1]] = piece
+        new_board_array[from_square[0]][from_square[1]] = None
+
+        return new_board_array
 
     def update(self, value):
         self.visits += 1
@@ -33,108 +60,118 @@ class Node:
     def best_child(self, exploration_weight):
         best_value = float("-inf")
         best_child = None
-
         for child in self.children:
             if child.visits == 0:
-                value = float("inf")  # Encourage exploration of this child
+                value = float("inf")
             else:
                 value = child.value / child.visits + exploration_weight * math.sqrt(
                     2 * math.log(self.visits) / child.visits
                 )
-
             if value > best_value:
                 best_value = value
                 best_child = child
-
         return best_child
 
 
 class MCTS:
-    def __init__(self, model, ai_color, iterations, all_valid_moves):
-        self.model = model
-        self.ai_color = ai_color
-        self.root = None
+    def __init__(self, root, iterations=100, is_white=1):
+        self.root = root
         self.iterations = iterations
-        self.all_valid_moves = all_valid_moves
-        self.transposition_table = {}  # Initialize transposition table
+        self.is_white = is_white
 
-    def __call__(self, human_move):
-        max_workers = cpu_count()
-        with Pool(processes=max_workers) as pool:
-            pool.map(self.run_iteration, range(self.iterations))
-
-        if not self.root.children:  # no legal moves
-            return None
-
-        best_move_node = sorted(self.root.children, key=lambda c: c.visits)[-1]
-        best_move = best_move_node.move
-        return best_move
-
-    def get_best_move(self, game, all_valid_moves):
-        self.root = Node(
-            game.get_board_state()
-        )  # returns the FEN string of the current board state
-
-        print("self.all_valid_moves: ", all_valid_moves)  # Debug print
-        self.root.expand(all_valid_moves)  # Expand root node with valid moves
-        print(
-            f"Root node has {len(self.root.children)} children after expansion."
-        )  # Debug print
-
-        best_move = self.__call__(None)
-
-        if best_move is not None:
-            return best_move.uci()  # Return the move in UCI format
-        else:
-            return None
-
-    def run_iteration(self, _):
-        node = self.root
+    def select(self, node):
         while not node.is_leaf():
             node = node.best_child(exploration_weight=1.4)
-            if node is None:
-                print("Node is None during iteration.")  # Debug print
-                return
+        return node
 
-        board = chess.Board(node.board_fen)  # Initialize board with FEN
-        if not board.is_game_over():
-            node.expand(self.all_valid_moves)
+    def expand(self, node):
+        all_valid_moves = self.get_all_valid_moves(node.board_array)
+        node.expand(all_valid_moves)
 
-        reward = self.negamax(
-            board, depth=3, color=1, alpha=float("-inf"), beta=float("inf")
-        )
+    def simulate(self, node):
+        return random.uniform(0, 1)
+
+    def backpropagate(self, node, value):
         while node is not None:
-            node.update(reward)
+            node.update(value)
             node = node.parent
 
-    def negamax(self, board, depth, color, alpha, beta):
-        fen = board.fen()
+    def run(self):
+        for _ in range(self.iterations):
+            leaf = self.select(self.root)
+            self.expand(leaf)
+            value = self.simulate(leaf)
+            self.backpropagate(leaf, value)
 
-        if fen in self.transposition_table:
-            stored_depth, stored_value = self.transposition_table[fen]
-            if stored_depth >= depth:
-                return stored_value
+    def get_all_valid_moves(self, board_array):
+        valid_moves = []
+        for x in range(8):
+            for y in range(8):
+                if board_array[x][y] is not None:
+                    if self.is_white and board_array[x][y].colour == "white":
+                        valid_moves = self.get_multiple_moves(
+                            board_array, valid_moves, x, y
+                        )
+                    elif not self.is_white and board_array[x][y].colour == "black":
+                        valid_moves = self.get_multiple_moves(
+                            board_array, valid_moves, x, y
+                        )
+        return valid_moves
 
-        if depth == 0 or board.is_game_over():
-            value = color * self.evaluate(board)
-            self.transposition_table[fen] = (depth, value)
-            return value
+    def get_multiple_moves(self, board_array, valid_moves, x, y):
+        moves = board_array[x][y].get_valid_moves(board_array, x, y)
+        for move in moves:
+            if move != (0, 0):
+                valid_moves.append(((x, y), move))
+        return valid_moves
 
-        max_value = float("-inf")
-        for move in board.legal_moves:
-            board.push(move)
-            value = -self.negamax(board, depth - 1, -color, -beta, -alpha)
-            board.pop()
-            max_value = max(max_value, value)
-            alpha = max(alpha, value)
-            if alpha >= beta:
-                break  # Beta cutoff
+    def best_move(self):
+        best_child = max(self.root.children, key=lambda child: child.visits)
+        return best_child.move
 
-        self.transposition_table[fen] = (depth, max_value)
-        return max_value
 
+<<<<<<< Updated upstream
     def evaluate(self, board):
-        # print(board)
-        score = eval_board(board, self.ai_color)
-        # print(self.ai_color)
-        return score
+        # Simplified evaluation: material count
+        material = sum(
+            piece_value[piece.piece_type] for piece in board.piece_map().values()
+        )
+        return material if board.turn == chess.WHITE else -material
+
+
+piece_value = {
+    chess.PAWN: 1,
+    chess.KNIGHT: 3,
+    chess.BISHOP: 3,
+    chess.ROOK: 5,
+    chess.QUEEN: 9,
+    chess.KING: 0,  # The king's value is arbitrarily set to 0 since it cannot be captured
+}
+=======
+# Example usage
+initial_board_array = [[None for _ in range(8)] for _ in range(8)]
+
+# Create white pieces
+initial_board_array[0][0] = Rook("white")
+initial_board_array[0][1] = Knight("white")
+initial_board_array[0][2] = Bishop("white")
+initial_board_array[0][4] = Queen("white")
+initial_board_array[0][3] = King("white")
+initial_board_array[0][5] = Bishop("white")
+initial_board_array[0][6] = Knight("white")
+initial_board_array[0][7] = Rook("white")
+for i in range(8):
+    initial_board_array[1][i] = Pawn("white")
+
+# Create black pieces
+initial_board_array[7][0] = Rook("black")
+initial_board_array[7][1] = Knight("black")
+initial_board_array[7][2] = Bishop("black")
+initial_board_array[7][4] = Queen("black")
+initial_board_array[7][3] = King("black")
+initial_board_array[7][5] = Bishop("black")
+initial_board_array[7][6] = Knight("black")
+initial_board_array[7][7] = Rook("black")
+for i in range(8):
+    initial_board_array[6][i] = Pawn("black")
+>>>>>>> Stashed changes
