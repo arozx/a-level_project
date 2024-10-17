@@ -76,7 +76,7 @@ class ChessBoard:
         self.mcts = MCTS(
             model=None,
             ai_color="white",
-            iterations=100,
+            iterations=5000,
             all_valid_moves=self.get_all_valid_moves(),
         )
 
@@ -145,7 +145,9 @@ class ChessBoard:
         print(f"Promoting pawn at ({x}, {y})")
 
     def game_over(self):
-        return self.are_you_in_check("white") == 2 or self.are_you_in_check("black") == 2
+        return (
+            self.are_you_in_check("white") == 2 or self.are_you_in_check("black") == 2
+        )
 
     def get_all_valid_moves(self):
         moves = []

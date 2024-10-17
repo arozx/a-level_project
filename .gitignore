@@ -30,3 +30,7 @@ checkpoints/
 
 # pstats
 *.pstats
+
+# coverage
+coverage.xml
+.coverage
